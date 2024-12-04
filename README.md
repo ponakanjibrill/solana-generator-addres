@@ -46,6 +46,10 @@ solana --version
    cd solana-generator-addres
    ```
 
+   ```
+   pip install -r requirements.txt
+   ```
+
 3. Run Script
 
    ```bash
