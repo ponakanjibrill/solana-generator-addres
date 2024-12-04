@@ -67,9 +67,9 @@ def loading_message(message):
     print(colored("Sabar Kontol, Tuan Mudah Jibril sedang bekerja keras... ✺◟( ͡° ͜ʖ ͡°)◞✺", "yellow"))
     
     # Menambahkan ASCII art dengan delay untuk memberikan efek loading
-    print("\n　　｡ﾟﾟ･｡･ﾟﾟ｡")
-    print("         ﾟ。        ｡ﾟ")
-    print("             ﾟ･｡･ﾟ")
+    print("\n　　        ｡ﾟﾟ･｡･ﾟﾟ｡")
+    print("            ﾟ。      ｡ﾟ")
+    print("               ﾟ･｡･ﾟ")
     print("       ︵               ︵")
     print("    (        ╲       /       /")
     print("      ╲          ╲/       /")
