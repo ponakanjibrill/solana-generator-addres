@@ -3,6 +3,7 @@ import json
 import os
 import time
 import tempfile
+import uuid
 from tqdm import tqdm
 from termcolor import colored
 
@@ -12,13 +13,22 @@ def generate_wallet():
     dan mnemonic acak.
     """
     try:
-        # Menyiapkan file sementara untuk menyimpan keypair
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            temp_file_path = temp_file.name
+        # Menyiapkan file sementara untuk menyimpan keypair dengan UUID unik
+        temp_file_path = f"/tmp/{uuid.uuid4().hex}.json"
 
         # Menjalankan perintah untuk menghasilkan keypair baru dengan mnemonic acak
-        command = ["solana-keygen", "new", "--no-bip39-passphrase", "--force", "--outfile", temp_file_path]
-        subprocess.run(command, check=True)
+        command = ["solana-keygen", "new", "--no-bip39-passphrase", "--outfile", temp_file_path]
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+
+        # Menangkap output dari perintah solana-keygen, yang berisi mnemonic
+        output = result.stdout
+        
+        # Output mencakup mnemonic yang diperlukan untuk wallet
+        mnemonic = None
+        for line in output.splitlines():
+            if line.startswith("Save this seed phrase"):
+                mnemonic = line.replace("Save this seed phrase to recover your new keypair:", "").strip()
+                break
 
         # Mengambil public key dari file keypair
         public_key = subprocess.check_output(["solana-keygen", "pubkey", temp_file_path]).decode('utf-8').strip()
@@ -32,9 +42,6 @@ def generate_wallet():
 
         # Mengonversi private key ke format hexadecimal
         private_key_hex = ''.join([format(i, '02x') for i in private_key])
-
-        # Mendapatkan mnemonic acak
-        mnemonic = subprocess.check_output(["solana-keygen", "dump", temp_file_path]).decode('utf-8').strip()
 
         return public_key, private_key_hex, mnemonic
 
