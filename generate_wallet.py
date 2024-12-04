@@ -26,10 +26,13 @@ def generate_wallet():
 
         # Output mencakup mnemonic yang diperlukan untuk wallet
         mnemonic = None
-        for line in output.splitlines():
-            # Mencari baris yang berisi mnemonic
-            if "save this seed phrase" in line.lower():  # Mengabaikan kapitalisasi
-                mnemonic = line.split(":")[1].strip()  # Ambil bagian setelah ":"
+        lines = output.splitlines()
+        
+        # Mencari baris yang berisi mnemonic dengan memperhatikan string setelah "Save this seed phrase"
+        for i, line in enumerate(lines):
+            if "save this seed phrase" in line.lower():
+                # Mnemonic biasanya ada di baris berikutnya
+                mnemonic = lines[i + 1].strip()
                 break
 
         if not mnemonic:
