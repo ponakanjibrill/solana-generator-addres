@@ -35,6 +35,12 @@ If using Codespace
 
     export PATH="/home/codespace/.local/share/solana/install/active_release/bin:$PATH"
 
+If using Ubuntu/VPS
+
+    export PATH="/home/ubuntu/.local/share/solana/install/active_release/bin:$PATH"
+
+must be compatible with your OS or Device
+
 ## USAGE
 
 1. Clone this repository:
