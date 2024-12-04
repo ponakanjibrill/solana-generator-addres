@@ -27,9 +27,7 @@ OR
 
     curl -sSf https://release.anza.xyz/stable/install | sh
 
-check if Installed
-
-    solana --version
+NEXT
 
 If using Codespace
 
@@ -38,6 +36,10 @@ If using Codespace
 If using Ubuntu/VPS
 
     export PATH="/home/ubuntu/.local/share/solana/install/active_release/bin:$PATH"
+
+Check File
+   
+    solana --version
 
 must be compatible with your OS or Device
 
