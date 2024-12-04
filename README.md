@@ -22,10 +22,9 @@ Before using this script, make sure you have the following installed:
 Install Solana CLI
 
     ```bash
-    sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
-    ```
+    sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"   ```
+
 OR
 
     ```bash
-    curl -sSf https://release.anza.xyz/stable/install | sh
-    ```
+    curl -sSf https://release.anza.xyz/stable/install | sh```
