@@ -29,7 +29,7 @@ def generate_wallet():
         for line in output.splitlines():
             # Mencari baris yang berisi mnemonic
             if line.lower().startswith("save this seed phrase"):
-                mnemonic = line.replace("Save this seed phrase to recover your new keypair:", "").strip()
+                mnemonic = line.split(":")[1].strip()  # Ambil bagian setelah ":"
                 break
 
         if not mnemonic:
