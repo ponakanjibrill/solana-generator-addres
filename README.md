@@ -6,7 +6,7 @@ This script allows you to generate Solana addresses
 
 Before using this script, make sure you have the following installed:
 - `bash`
-- `curl
+- `curl`
 
 ## Install
 
