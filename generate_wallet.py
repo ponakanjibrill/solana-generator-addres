@@ -64,7 +64,23 @@ def loading_message(message):
     """
     Fungsi untuk menampilkan pesan loading dengan delay 10 detik
     """
-    print(colored("Sabar KONTOL, Tuan Muda Ponakan Jibril sedang bekerja keras...", "yellow"))
+    print(colored("Sabar Kontol, Tuan Mudah Jibril sedang bekerja keras... ✺◟( ͡° ͜ʖ ͡°)◞✺", "yellow"))
+    
+    # Menambahkan ASCII art dengan delay untuk memberikan efek loading
+    print("\n　　｡ﾟﾟ･｡･ﾟﾟ｡")
+    print("         ﾟ。        ｡ﾟ")
+    print("             ﾟ･｡･ﾟ")
+    print("       ︵               ︵")
+    print("    (        ╲       /       /")
+    print("      ╲          ╲/       /")
+    print("           ╲          ╲  /")
+    print("          ╭ ͡   ╲           ╲")
+    print("     ╭ ͡   ╲        ╲       ﾉ")
+    print("╭ ͡   ╲        ╲         ╱")
+    print(" ╲       ╲          ╱")
+    print("      ╲         ╱ ")
+    print("          ︶ ")
+    
     time.sleep(10)  # Menambahkan delay 10 detik sebelum melanjutkan
 
     # Menampilkan progress bar selama proses pembuatan wallet
@@ -95,8 +111,11 @@ def main():
     if not os.path.exists(destination_dir):
         os.makedirs(destination_dir)
 
-    # Menulis ke file wallet.txt di dalam direktori 'hasil_wallet'
-    with open(os.path.join(destination_dir, "wallet.txt"), "w") as wallet_file:
+    # Membuka file wallet.txt di dalam direktori 'hasil_wallet' untuk menambahkan hasil baru
+    wallet_file_path = os.path.join(destination_dir, "wallet.txt")
+
+    # Jika file wallet.txt sudah ada, akan menambahkan hasil wallet baru tanpa menghapus yang lama
+    with open(wallet_file_path, "a") as wallet_file:
         # Loading animation
         loading_message("Menghasilkan wallet Solana...")
 
@@ -108,13 +127,13 @@ def main():
                 wallet_file.write(f"Mnemonic: {mnemonic}\n")
                 wallet_file.write("=" * 80 + "\n")
                 print(f"{colored('Wallet', 'green')} {public_key} {colored('berhasil dibuat.', 'green')}")
-                print(f"{colored('Informasi wallet dipindahkan ke:', 'blue')} hasil_wallet/wallet.txt")
+                print(f"{colored('Informasi wallet dipindahkan ke:', 'blue')} {wallet_file_path}")
             else:
                 print(colored("Gagal menghasilkan wallet, coba lagi.", "red"))
 
     print("\n" + colored("==============================================", "green"))
     print(colored("    Semua wallet berhasil dibuat dan disimpan!    ", "cyan"))
-    print(colored("    Cek hasil_wallet/wallet.txt untuk detailnya.       ", "cyan"))
+    print(colored(f"    Cek {wallet_file_path} untuk detailnya.       ", "cyan"))
     print(colored("==============================================", "green"))
 
 if __name__ == "__main__":
