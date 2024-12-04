@@ -78,4 +78,15 @@ If already export check this
    Berapa banyak wallet yang ingin di-generate? 5
    ```
 
-   Done Cok
+Check Hasil generator
+
+   ```
+   cd hasil_wallet
+   ```
+
+   ```
+   nano wallet.txt
+   ```
+
+
+Done Cok
