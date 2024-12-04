@@ -39,9 +39,13 @@ If using Ubuntu/VPS
 
 must be compatible with your OS or Device
 
+
+
 If already export check this
     
     solana --version
+
+
 
 ## USAGE
 
