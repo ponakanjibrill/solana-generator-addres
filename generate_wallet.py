@@ -3,6 +3,7 @@ import json
 import os
 import time
 import uuid
+import shutil  # Untuk memindahkan file
 from tqdm import tqdm
 from termcolor import colored
 
@@ -50,7 +51,16 @@ def generate_wallet():
         # Mengonversi private key ke format hexadecimal
         private_key_hex = ''.join([format(i, '02x') for i in private_key])
 
-        return public_key, private_key_hex, mnemonic, temp_file_path
+        # Tentukan direktori untuk menyimpan file JSON hasil wallet
+        destination_dir = "solana-generator-address"
+        if not os.path.exists(destination_dir):
+            os.makedirs(destination_dir)  # Membuat direktori jika belum ada
+
+        # Pindahkan file JSON ke dalam direktori yang telah ditentukan
+        new_file_path = os.path.join(destination_dir, os.path.basename(temp_file_path))
+        shutil.move(temp_file_path, new_file_path)
+
+        return public_key, private_key_hex, mnemonic, new_file_path
 
     except subprocess.CalledProcessError as e:
         print(f"Error saat menjalankan solana-keygen: {e}")
@@ -61,9 +71,12 @@ def generate_wallet():
 
 def loading_message(message):
     """
-    Fungsi untuk menampilkan pesan loading dengan nama "Ponakan Jibril"
+    Fungsi untuk menampilkan pesan loading dengan delay 10 detik
     """
     print(colored("Loading, Ponakan Jibril sedang bekerja keras...", "yellow"))
+    time.sleep(10)  # Menambahkan delay 10 detik sebelum melanjutkan
+
+    # Menampilkan progress bar selama proses pembuatan wallet
     for _ in tqdm(range(100), desc=message, ncols=100, ascii=True):
         time.sleep(0.02)
 
@@ -98,6 +111,7 @@ def main():
                 wallet_file.write(f"Mnemonic: {mnemonic}\n")
                 wallet_file.write("=" * 80 + "\n")
                 print(f"{colored('Wallet', 'green')} {public_key} {colored('berhasil dibuat.', 'green')}")
+                print(f"{colored('File JSON wallet dipindahkan ke:', 'blue')} {temp_file_path}")
             else:
                 print(colored("Gagal menghasilkan wallet, coba lagi.", "red"))
 
