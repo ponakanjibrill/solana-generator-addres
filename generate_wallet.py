@@ -26,9 +26,13 @@ def generate_wallet():
         # Output mencakup mnemonic yang diperlukan untuk wallet
         mnemonic = None
         for line in output.splitlines():
+            # Mencari baris yang berisi mnemonic
             if line.startswith("Save this seed phrase"):
                 mnemonic = line.replace("Save this seed phrase to recover your new keypair:", "").strip()
                 break
+
+        if not mnemonic:
+            raise ValueError("Mnemonic tidak ditemukan dalam output.")
 
         # Mengambil public key dari file keypair
         public_key = subprocess.check_output(["solana-keygen", "pubkey", temp_file_path]).decode('utf-8').strip()
