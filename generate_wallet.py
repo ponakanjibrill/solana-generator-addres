@@ -51,18 +51,14 @@ def generate_wallet():
         # Mengonversi private key ke format hexadecimal
         private_key_hex = ''.join([format(i, '02x') for i in private_key])
 
-        return public_key, private_key_hex, mnemonic
+        return public_key, private_key_hex, mnemonic, temp_file_path
 
     except subprocess.CalledProcessError as e:
         print(f"Error saat menjalankan solana-keygen: {e}")
-        return None, None, None
+        return None, None, None, None
     except Exception as e:
         print(f"Terjadi kesalahan: {e}")
-        return None, None, None
-    finally:
-        # Membersihkan file sementara keypair yang dibuat
-        if os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
+        return None, None, None, None
 
 def loading_message(message):
     """
@@ -80,7 +76,11 @@ def main():
 
     # Menunggu pengguna untuk input jumlah wallet
     try:
-        num_wallets = int(input("Berapa banyak wallet yang ingin di-generate? "))
+        num_wallets = int(input("Berapa banyak wallet yang ingin di-generate? (Max 30) "))
+        # Membatasi jumlah wallet maksimal
+        if num_wallets > 30:
+            print(colored("Jumlah wallet yang diizinkan adalah maksimal 30. Menggunakan 30 wallet.", "red"))
+            num_wallets = 30
         if num_wallets <= 0:
             raise ValueError("Jumlah wallet harus lebih dari 0.")
     except ValueError as e:
@@ -92,7 +92,7 @@ def main():
 
     with open("wallet.txt", "w") as wallet_file:
         for _ in range(num_wallets):
-            public_key, private_key, mnemonic = generate_wallet()
+            public_key, private_key, mnemonic, temp_file_path = generate_wallet()
             if public_key and private_key:
                 wallet_file.write(f"Public Key: {public_key}\n")
                 wallet_file.write(f"Private Key (Hex): {private_key}\n")
