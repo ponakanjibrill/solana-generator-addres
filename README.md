@@ -53,7 +53,7 @@ solana --version
 3. Run Script
 
    ```bash
-   python3 generate_wallets.py
+   python3 generate_wallet.py
    ```
 
 
