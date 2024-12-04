@@ -20,14 +20,15 @@ def generate_wallet():
         command = ["solana-keygen", "new", "--no-bip39-passphrase", "--outfile", temp_file_path]
         result = subprocess.run(command, check=True, capture_output=True, text=True)
 
-        # Menangkap output dari perintah solana-keygen, yang berisi mnemonic
+        # Menampilkan output dari perintah untuk memeriksa formatnya
         output = result.stdout
-        
+        print("Output dari solana-keygen new:\n", output)  # Menampilkan output untuk debugging
+
         # Output mencakup mnemonic yang diperlukan untuk wallet
         mnemonic = None
         for line in output.splitlines():
             # Mencari baris yang berisi mnemonic
-            if line.startswith("Save this seed phrase"):
+            if line.lower().startswith("save this seed phrase"):
                 mnemonic = line.replace("Save this seed phrase to recover your new keypair:", "").strip()
                 break
 
