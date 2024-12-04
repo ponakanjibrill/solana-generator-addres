@@ -61,7 +61,6 @@ solana --version
 
    ```bash
    Berapa banyak wallet yang ingin di-generate? 5
-   Apakah ingin menggunakan pasphrasse untuk mnemonic y/n?
    ```
 
    Done Cok
