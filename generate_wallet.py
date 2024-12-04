@@ -8,7 +8,7 @@ from termcolor import colored
 
 def generate_wallet():
     """
-    Fungsi untuk menghasilkan wallet Solana, mengambil public key, private key,
+    Fungsi untuk menghasilkan wallet Solana, mengambil Address, private key,
     dan mnemonic acak.
     """
     try:
@@ -37,8 +37,8 @@ def generate_wallet():
         if not mnemonic:
             raise ValueError("Mnemonic tidak ditemukan dalam output.")
 
-        # Mengambil public key dari file keypair
-        public_key = subprocess.check_output(["solana-keygen", "pubkey", temp_file_path]).decode('utf-8').strip()
+        # Mengambil Address dari file keypair
+        address = subprocess.check_output(["solana-keygen", "pubkey", temp_file_path]).decode('utf-8').strip()
 
         # Membaca file keypair untuk mendapatkan private key
         with open(temp_file_path, "r") as f:
@@ -51,7 +51,7 @@ def generate_wallet():
         private_key_hex = ''.join([format(i, '02x') for i in private_key])
 
         # Kembalikan informasi wallet dan path file JSON
-        return public_key, private_key_hex, mnemonic, temp_file_path
+        return address, private_key_hex, mnemonic, temp_file_path
 
     except subprocess.CalledProcessError as e:
         print(f"Error saat menjalankan solana-keygen: {e}")
@@ -120,13 +120,13 @@ def main():
         loading_message("Menghasilkan wallet Solana...")
 
         for _ in range(num_wallets):
-            public_key, private_key, mnemonic, temp_file_path = generate_wallet()
-            if public_key and private_key:
-                wallet_file.write(f"Public Key: {public_key}\n")
+            address, private_key, mnemonic, temp_file_path = generate_wallet()
+            if address and private_key:
+                wallet_file.write(f"Address: {address}\n")
                 wallet_file.write(f"Private Key (Hex): {private_key}\n")
                 wallet_file.write(f"Mnemonic: {mnemonic}\n")
                 wallet_file.write("=" * 80 + "\n")
-                print(f"{colored('Wallet', 'green')} {public_key} {colored('berhasil dibuat.', 'green')}")
+                print(f"{colored('Wallet', 'green')} {address} {colored('berhasil dibuat.', 'green')}")
                 print(f"{colored('Informasi wallet dipindahkan ke:', 'blue')} {wallet_file_path}")
             else:
                 print(colored("Gagal menghasilkan wallet, coba lagi.", "red"))
