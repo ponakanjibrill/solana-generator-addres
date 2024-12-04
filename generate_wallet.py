@@ -2,7 +2,6 @@ import subprocess
 import json
 import os
 import time
-import tempfile
 import uuid
 from tqdm import tqdm
 from termcolor import colored
