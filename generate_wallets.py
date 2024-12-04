@@ -2,24 +2,29 @@ import subprocess
 import json
 import os
 import time
+import tempfile
 from tqdm import tqdm
 from termcolor import colored
 
-def generate_wallet(passphrase=None):
+def generate_wallet():
     """
     Fungsi untuk menghasilkan wallet Solana, mengambil public key, private key,
-    dan mnemonic jika passphrase digunakan.
+    dan mnemonic acak.
     """
     try:
-        # Menjalankan perintah untuk menghasilkan keypair baru, dengan passphrase jika diberikan
-        command = ["solana-keygen", "new", "--no-bip39-passphrase" if passphrase is None else "--bip39-passphrase", "--outfile", "/tmp/temp_keypair.json"]
+        # Menyiapkan file sementara untuk menyimpan keypair
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file_path = temp_file.name
+
+        # Menjalankan perintah untuk menghasilkan keypair baru dengan mnemonic acak
+        command = ["solana-keygen", "new", "--no-bip39-passphrase", "--outfile", temp_file_path]
         subprocess.run(command, check=True)
 
         # Mengambil public key dari file keypair
-        public_key = subprocess.check_output(["solana-keygen", "pubkey", "/tmp/temp_keypair.json"]).decode('utf-8').strip()
+        public_key = subprocess.check_output(["solana-keygen", "pubkey", temp_file_path]).decode('utf-8').strip()
 
         # Membaca file keypair untuk mendapatkan private key
-        with open("/tmp/temp_keypair.json", "r") as f:
+        with open(temp_file_path, "r") as f:
             keypair_data = json.load(f)
 
         # Private key ada dalam keypair_data, dalam format array byte
@@ -28,11 +33,8 @@ def generate_wallet(passphrase=None):
         # Mengonversi private key ke format hexadecimal
         private_key_hex = ''.join([format(i, '02x') for i in private_key])
 
-        # Mendapatkan mnemonic jika passphrase digunakan
-        if passphrase:
-            mnemonic = subprocess.check_output(["solana-keygen", "dump", "/tmp/temp_keypair.json"]).decode('utf-8').strip()
-        else:
-            mnemonic = "Mnemonic tidak tersedia tanpa passphrase."
+        # Mendapatkan mnemonic acak
+        mnemonic = subprocess.check_output(["solana-keygen", "dump", temp_file_path]).decode('utf-8').strip()
 
         return public_key, private_key_hex, mnemonic
 
@@ -44,8 +46,8 @@ def generate_wallet(passphrase=None):
         return None, None, None
     finally:
         # Membersihkan file sementara keypair yang dibuat
-        if os.path.exists("/tmp/temp_keypair.json"):
-            os.remove("/tmp/temp_keypair.json")
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
 
 def loading_message(message):
     """
@@ -62,19 +64,20 @@ def main():
     print("\n")
 
     # Menunggu pengguna untuk input jumlah wallet
-    num_wallets = int(input("Berapa banyak wallet yang ingin di-generate? "))
-    use_passphrase = input("Apakah Anda ingin menggunakan passphrase untuk mnemonic (y/n)? ").lower() == 'y'
-    
-    passphrase = None
-    if use_passphrase:
-        passphrase = input("Masukkan passphrase untuk mnemonic: ")
-    
+    try:
+        num_wallets = int(input("Berapa banyak wallet yang ingin di-generate? "))
+        if num_wallets <= 0:
+            raise ValueError("Jumlah wallet harus lebih dari 0.")
+    except ValueError as e:
+        print(f"Input tidak valid: {e}")
+        return
+
     # Loading animation
     loading_message("Menghasilkan wallet Solana...")
 
     with open("wallet.txt", "w") as wallet_file:
         for _ in range(num_wallets):
-            public_key, private_key, mnemonic = generate_wallet(passphrase)
+            public_key, private_key, mnemonic = generate_wallet()
             if public_key and private_key:
                 wallet_file.write(f"Public Key: {public_key}\n")
                 wallet_file.write(f"Private Key (Hex): {private_key}\n")
@@ -91,3 +94,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
