@@ -29,8 +29,9 @@ OR
 
 check if Installed
 
-solana --version
-
+    ```
+    solana --version
+    ```
 
 ## USAGE
 
