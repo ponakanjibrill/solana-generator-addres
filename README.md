@@ -31,6 +31,10 @@ check if Installed
 
     solana --version
 
+If using Codespace
+
+    export PATH="/home/codespace/.local/share/solana/install/active_release/bin:$PATH"
+
 ## USAGE
 
 1. Clone this repository:
