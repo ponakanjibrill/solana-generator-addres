@@ -37,11 +37,10 @@ If using Ubuntu/VPS
 
     export PATH="/home/ubuntu/.local/share/solana/install/active_release/bin:$PATH"
 
-Check File
-   
-    solana --version
-
 must be compatible with your OS or Device
+
+If already export check this
+    solana --version
 
 ## USAGE
 
