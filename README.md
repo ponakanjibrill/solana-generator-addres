@@ -26,3 +26,38 @@ Install Solana CLI
 OR
 
     curl -sSf https://release.anza.xyz/stable/install | sh
+
+check if Installed
+
+solana --version
+
+
+## USAGE
+
+1. Clone this repository:
+
+   ```bash
+   git clone https://github.com/ponakanjibrill/solana-generator-addres.git
+   ```
+
+2. Go
+
+   ```bash
+   cd solana-generator-addres
+   ```
+
+3. Run Script
+
+   ```bash
+   python3 generate_wallets.py
+   ```
+
+
+   Example:
+
+   ```bash
+   Berapa banyak wallet yang ingin di-generate? 5
+   Apakah ingin menggunakan pasphrasse untuk mnemonic y/n?
+   ```
+
+   Done Cok
