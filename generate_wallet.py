@@ -3,7 +3,6 @@ import json
 import os
 import time
 import uuid
-import shutil  # Untuk memindahkan file (jika diperlukan)
 from tqdm import tqdm
 from termcolor import colored
 
@@ -65,7 +64,7 @@ def loading_message(message):
     """
     Fungsi untuk menampilkan pesan loading dengan delay 10 detik
     """
-    print(colored("Loading, Ponakan Jibril sedang bekerja keras...", "yellow"))
+    print(colored("Sabar KONTOL, Tuan Muda Ponakan Jibril sedang bekerja keras...", "yellow"))
     time.sleep(10)  # Menambahkan delay 10 detik sebelum melanjutkan
 
     # Menampilkan progress bar selama proses pembuatan wallet
@@ -91,10 +90,16 @@ def main():
         print(f"Input tidak valid: {e}")
         return
 
-    # Loading animation
-    loading_message("Menghasilkan wallet Solana...")
+    # Membuat direktori 'hasil_wallet' jika belum ada
+    destination_dir = "hasil_wallet"
+    if not os.path.exists(destination_dir):
+        os.makedirs(destination_dir)
 
-    with open("all_wallet.txt", "w") as wallet_file:
+    # Menulis ke file wallet.txt di dalam direktori 'hasil_wallet'
+    with open(os.path.join(destination_dir, "wallet.txt"), "w") as wallet_file:
+        # Loading animation
+        loading_message("Menghasilkan wallet Solana...")
+
         for _ in range(num_wallets):
             public_key, private_key, mnemonic, temp_file_path = generate_wallet()
             if public_key and private_key:
@@ -103,13 +108,13 @@ def main():
                 wallet_file.write(f"Mnemonic: {mnemonic}\n")
                 wallet_file.write("=" * 80 + "\n")
                 print(f"{colored('Wallet', 'green')} {public_key} {colored('berhasil dibuat.', 'green')}")
-                print(f"{colored('Informasi wallet dipindahkan ke:', 'blue')} all_wallet.txt")
+                print(f"{colored('Informasi wallet dipindahkan ke:', 'blue')} hasil_wallet/wallet.txt")
             else:
                 print(colored("Gagal menghasilkan wallet, coba lagi.", "red"))
 
     print("\n" + colored("==============================================", "green"))
     print(colored("    Semua wallet berhasil dibuat dan disimpan!    ", "cyan"))
-    print(colored("    Cek all_wallet.txt untuk detailnya.       ", "cyan"))
+    print(colored("    Cek hasil_wallet/wallet.txt untuk detailnya.       ", "cyan"))
     print(colored("==============================================", "green"))
 
 if __name__ == "__main__":
