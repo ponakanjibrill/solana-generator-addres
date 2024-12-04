@@ -72,7 +72,7 @@ If already export check this
    ```
 
 
-   Example:
+   Example: (Max 30)
 
    ```bash
    Berapa banyak wallet yang ingin di-generate? 5
