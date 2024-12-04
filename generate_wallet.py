@@ -3,7 +3,7 @@ import json
 import os
 import time
 import uuid
-import shutil  # Untuk memindahkan file
+import shutil  # Untuk memindahkan file (jika diperlukan)
 from tqdm import tqdm
 from termcolor import colored
 
@@ -51,16 +51,8 @@ def generate_wallet():
         # Mengonversi private key ke format hexadecimal
         private_key_hex = ''.join([format(i, '02x') for i in private_key])
 
-        # Tentukan direktori untuk menyimpan file JSON hasil wallet
-        destination_dir = "solana-generator-address"
-        if not os.path.exists(destination_dir):
-            os.makedirs(destination_dir)  # Membuat direktori jika belum ada
-
-        # Pindahkan file JSON ke dalam direktori yang telah ditentukan
-        new_file_path = os.path.join(destination_dir, os.path.basename(temp_file_path))
-        shutil.move(temp_file_path, new_file_path)
-
-        return public_key, private_key_hex, mnemonic, new_file_path
+        # Kembalikan informasi wallet dan path file JSON
+        return public_key, private_key_hex, mnemonic, temp_file_path
 
     except subprocess.CalledProcessError as e:
         print(f"Error saat menjalankan solana-keygen: {e}")
@@ -102,7 +94,7 @@ def main():
     # Loading animation
     loading_message("Menghasilkan wallet Solana...")
 
-    with open("wallet.txt", "w") as wallet_file:
+    with open("all_wallet.txt", "w") as wallet_file:
         for _ in range(num_wallets):
             public_key, private_key, mnemonic, temp_file_path = generate_wallet()
             if public_key and private_key:
@@ -111,13 +103,13 @@ def main():
                 wallet_file.write(f"Mnemonic: {mnemonic}\n")
                 wallet_file.write("=" * 80 + "\n")
                 print(f"{colored('Wallet', 'green')} {public_key} {colored('berhasil dibuat.', 'green')}")
-                print(f"{colored('File JSON wallet dipindahkan ke:', 'blue')} {temp_file_path}")
+                print(f"{colored('Informasi wallet dipindahkan ke:', 'blue')} all_wallet.txt")
             else:
                 print(colored("Gagal menghasilkan wallet, coba lagi.", "red"))
 
     print("\n" + colored("==============================================", "green"))
     print(colored("    Semua wallet berhasil dibuat dan disimpan!    ", "cyan"))
-    print(colored("    Cek wallet.txt untuk detailnya.            ", "cyan"))
+    print(colored("    Cek all_wallet.txt untuk detailnya.       ", "cyan"))
     print(colored("==============================================", "green"))
 
 if __name__ == "__main__":
