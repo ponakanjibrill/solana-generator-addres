@@ -17,7 +17,7 @@ def generate_wallet():
             temp_file_path = temp_file.name
 
         # Menjalankan perintah untuk menghasilkan keypair baru dengan mnemonic acak
-        command = ["solana-keygen", "new", "--no-bip39-passphrase", "--outfile", temp_file_path]
+        command = ["solana-keygen", "new", "--no-bip39-passphrase", "--force", "--outfile", temp_file_path]
         subprocess.run(command, check=True)
 
         # Mengambil public key dari file keypair
@@ -94,4 +94,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
