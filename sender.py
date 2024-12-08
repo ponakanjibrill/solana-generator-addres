@@ -3,7 +3,7 @@ import base64
 from solders.keypair import Keypair  # Import Keypair from solders
 from solana.rpc.api import Client
 from solana.transaction import Transaction
-from solana.system_program import TransferParams, transfer
+from solana.system_program import Transfer  # Import Transfer from system_program
 from solana.publickey import PublicKey
 from solana.rpc.types import TxOpts
 from dotenv import load_dotenv
@@ -33,12 +33,10 @@ def send_tokens(sender_account: Keypair, recipient_address: str, amount: int):
     Send tokens from sender to recipient
     """
     transaction = Transaction()
-    transfer_instruction = transfer(
-        TransferParams(
-            from_pubkey=sender_account.public_key,
-            to_pubkey=PublicKey(recipient_address),
-            lamports=amount,
-        )
+    transfer_instruction = Transfer(
+        from_pubkey=sender_account.public_key,
+        to_pubkey=PublicKey(recipient_address),
+        lamports=amount,
     )
     transaction.add(transfer_instruction)
     response = client.send_transaction(transaction, sender_account, opts=TxOpts(skip_preflight=True))
