@@ -88,7 +88,8 @@ Check Hasil generator
 
 For Bot TX
 
-    pip install solana python-dotenv
+    npm install @solana/web3.js
+
     
 
 open file
@@ -98,7 +99,8 @@ open file
 
 impor privatkey and recipient address in file ```data.env```
 
-    python sender.py
+    node sender.js
+
     
 
 
