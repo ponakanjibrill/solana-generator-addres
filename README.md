@@ -91,9 +91,9 @@ For Bot TX
     pip install solana python-dotenv
     
 
-    ```
+open file
+    
     cd txbot
-    ```
 
 
 impor privatkey and recipient address in file ```data.env```
