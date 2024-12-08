@@ -1,71 +1,66 @@
-import os
-import base64
-from solana.keypair import Keypair  # Import Keypair from solana-py
-from solana.rpc.api import Client
-from solana.transaction import Transaction
-from solana.transaction import Transfer  # Import Transfer correctly from solana.transaction
-from solana.publickey import PublicKey
-from solana.rpc.types import TxOpts
-from dotenv import load_dotenv
-import time
+require('dotenv').config();
+const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram } = require('@solana/web3.js');
+const base64 = require('base64-js');
+const { sleep } = require('util');
 
-# Load environment variables
-load_dotenv()
+// Load environment variables
+const privateKeys = JSON.parse(process.env.PRIVATE_KEYS);
+const recipientAddress = process.env.RECIPIENT_ADDRESS;
 
-# Get private keys from the .env file (assuming they are base64 encoded)
-private_keys = eval(os.getenv("PRIVATE_KEYS"))
+// Set up Solana connection (use "devnet" for testing, "mainnet-beta" for production)
+const connection = new Connection("https://api.devnet.solana.com", 'confirmed');
 
-# The recipient address
-recipient_address = os.getenv("RECIPIENT_ADDRESS")
+// Function to get balance of an account
+async function getBalance(account) {
+  const balance = await connection.getBalance(account.publicKey);
+  return balance;
+}
 
-# Connect to Solana cluster (using devnet for testing, change to mainnet or testnet as needed)
-client = Client("https://api.devnet.solana.com")
+// Function to send tokens from sender to recipient
+async function sendTokens(senderAccount, recipientAddress, amount) {
+  const transaction = new Transaction().add(
+    SystemProgram.transfer({
+      fromPubkey: senderAccount.publicKey,
+      toPubkey: recipientAddress,
+      lamports: amount,
+    })
+  );
 
-def get_balance(account: Keypair):
-    """
-    Get the balance of a wallet
-    """
-    balance = client.get_balance(account.public_key)
-    return balance['result']['value']
+  // Send the transaction
+  const signature = await connection.sendTransaction(transaction, [senderAccount]);
+  await connection.confirmTransaction(signature);
+  return signature;
+}
 
-def send_tokens(sender_account: Keypair, recipient_address: str, amount: int):
-    """
-    Send tokens from sender to recipient
-    """
-    transaction = Transaction()
-    transfer_instruction = Transfer(
-        from_pubkey=sender_account.public_key,
-        to_pubkey=PublicKey(recipient_address),
-        lamports=amount,
-    )
-    transaction.add(transfer_instruction)
-    response = client.send_transaction(transaction, sender_account, opts=TxOpts(skip_preflight=True))
-    return response
+// Main function to process the accounts
+async function processAccounts() {
+  for (let privateKeyBase64 of privateKeys) {
+    // Decode the private key from base64
+    const privateKeyBytes = base64.toByteArray(privateKeyBase64);
+    const senderAccount = Keypair.fromSecretKey(privateKeyBytes);
 
-def process_accounts():
-    """
-    Process each account by checking balance and sending tokens if sufficient balance exists
-    """
-    for private_key_base64 in private_keys:
-        # Decode the private key from base64
-        private_key_bytes = base64.b64decode(private_key_base64)
-        sender_account = Keypair.from_secret_key(private_key_bytes)  # Create account using solana-py Keypair
-        
-        # Get the balance of the account
-        balance = get_balance(sender_account)
-        
-        print(f"Account {sender_account.public_key} balance: {balance} lamports")
-        
-        # Check if balance is sufficient (example: minimum 1 SOL)
-        if balance >= 1_000_000_000:  # 1 SOL = 1,000,000,000 lamports
-            amount_to_send = balance - 500_000_000  # Example: send all except 0.5 SOL
-            print(f"Sending {amount_to_send / 1_000_000_000} SOL from account {sender_account.public_key} to {recipient_address}")
-            response = send_tokens(sender_account, recipient_address, amount_to_send)
-            print(f"Transaction response: {response}")
-        else:
-            print(f"Insufficient funds to send from {sender_account.public_key}")
+    // Get balance of the account
+    const balance = await getBalance(senderAccount);
+    console.log(`Account ${senderAccount.publicKey.toBase58()} balance: ${balance / LAMPORTS_PER_SOL} SOL`);
 
-# Run the process
-while True:
-    process_accounts()
-    time.sleep(10)  # Wait 10 seconds before checking again
+    // Check if balance is sufficient (example: minimum 1 SOL)
+    if (balance >= 1 * LAMPORTS_PER_SOL) {  // 1 SOL = 1,000,000,000 lamports
+      const amountToSend = balance - 0.5 * LAMPORTS_PER_SOL;  // Send all except 0.5 SOL
+      console.log(`Sending ${amountToSend / LAMPORTS_PER_SOL} SOL from account ${senderAccount.publicKey.toBase58()} to ${recipientAddress}`);
+      const response = await sendTokens(senderAccount, recipientAddress, amountToSend);
+      console.log(`Transaction response: ${response}`);
+    } else {
+      console.log(`Insufficient funds to send from ${senderAccount.publicKey.toBase58()}`);
+    }
+  }
+}
+
+// Run the process every 10 seconds
+async function startBot() {
+  while (true) {
+    await processAccounts();
+    await sleep(10000);  // Wait for 10 seconds before checking again
+  }
+}
+
+startBot();
