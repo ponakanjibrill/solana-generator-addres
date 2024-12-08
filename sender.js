@@ -1,14 +1,14 @@
 require('dotenv').config({ path: './data.env' }); // Automatically load from data.env
 
-const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram } = require('@solana/web3.js');
+const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
 
 // Read the private key from the .env file as a hexadecimal string
 const privateKeyHex = process.env.PRIVATE_KEY;
 const recipientAddress = process.env.RECIPIENT_ADDRESS;
 
-// Ensure the private key is provided in the .env file
-if (!privateKeyHex) {
-  console.log('No private key found in environment variables.');
+// Ensure the private key and recipient address are provided in the .env file
+if (!privateKeyHex || !recipientAddress) {
+  console.log('Private key or recipient address is missing in environment variables.');
   process.exit(1);
 }
 
@@ -27,26 +27,45 @@ const senderAccount = Keypair.fromSecretKey(privateKeyBytes);
 // Set up Solana connection (use "devnet" for testing, "mainnet-beta" for production)
 const connection = new Connection("https://api.devnet.solana.com", 'confirmed');
 
+// Convert recipient address to PublicKey
+let recipientPublicKey;
+try {
+  recipientPublicKey = new PublicKey(recipientAddress);
+} catch (error) {
+  console.log('Invalid recipient address:', recipientAddress);
+  process.exit(1);
+}
+
 // Function to get balance of an account
 async function getBalance(account) {
-  const balance = await connection.getBalance(account.publicKey);
-  return balance;
+  try {
+    const balance = await connection.getBalance(account.publicKey);
+    return balance;
+  } catch (error) {
+    console.log('Error fetching balance:', error);
+    process.exit(1);
+  }
 }
 
 // Function to send tokens from sender to recipient
-async function sendTokens(senderAccount, recipientAddress, amount) {
-  const transaction = new Transaction().add(
-    SystemProgram.transfer({
-      fromPubkey: senderAccount.publicKey,
-      toPubkey: recipientAddress,
-      lamports: amount,
-    })
-  );
+async function sendTokens(senderAccount, recipientPublicKey, amount) {
+  try {
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: senderAccount.publicKey,
+        toPubkey: recipientPublicKey,
+        lamports: amount,
+      })
+    );
 
-  // Send the transaction
-  const signature = await connection.sendTransaction(transaction, [senderAccount]);
-  await connection.confirmTransaction(signature);
-  return signature;
+    // Send the transaction
+    const signature = await connection.sendTransaction(transaction, [senderAccount]);
+    await connection.confirmTransaction(signature);
+    return signature;
+  } catch (error) {
+    console.log('Error sending transaction:', error);
+    process.exit(1);
+  }
 }
 
 // Main function to process the account
@@ -58,8 +77,8 @@ async function processAccount() {
   // Check if balance is sufficient (example: minimum 1 SOL)
   if (balance >= 1 * LAMPORTS_PER_SOL) {  // 1 SOL = 1,000,000,000 lamports
     const amountToSend = balance - 0.5 * LAMPORTS_PER_SOL;  // Send all except 0.5 SOL
-    console.log(`Sending ${amountToSend / LAMPORTS_PER_SOL} SOL from account ${senderAccount.publicKey.toBase58()} to ${recipientAddress}`);
-    const response = await sendTokens(senderAccount, recipientAddress, amountToSend);
+    console.log(`Sending ${amountToSend / LAMPORTS_PER_SOL} SOL from account ${senderAccount.publicKey.toBase58()} to ${recipientPublicKey.toBase58()}`);
+    const response = await sendTokens(senderAccount, recipientPublicKey, amountToSend);
     console.log(`Transaction response: ${response}`);
   } else {
     console.log(`Insufficient funds to send from ${senderAccount.publicKey.toBase58()}`);
