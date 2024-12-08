@@ -23,9 +23,6 @@ Install Solana CLI
 
     curl -sSf https://release.anza.xyz/stable/install | sh
 
-Windows
-
-   ```cmd /c "curl https://release.anza.xyz/v2.1.4/agave-install-init-x86_64-pc-windows-msvc.exe --output C:\agave-install-tmp\agave-install-init.exe --create-dirs"```
 
 NEXT
 
