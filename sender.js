@@ -1,11 +1,18 @@
-require('dotenv').config();
+require('dotenv').config({ path: './data.env' }); // Automatically load from data.env
+
 const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram } = require('@solana/web3.js');
 const base64 = require('base64-js');
-const { sleep } = require('util');
 
-// Load environment variables
-const privateKeys = JSON.parse(process.env.PRIVATE_KEYS);
+// Log the loaded environment variables to check the values
+console.log('PRIVATE_KEYS:', process.env.PRIVATE_KEYS);  // Debugging line
+const privateKeys = JSON.parse(process.env.PRIVATE_KEYS || '[]');  // Default to empty array if not set
 const recipientAddress = process.env.RECIPIENT_ADDRESS;
+
+// Check if private keys are loaded correctly
+if (!privateKeys || privateKeys.length === 0) {
+  console.log('No private keys found in environment variables.');
+  process.exit(1);
+}
 
 // Set up Solana connection (use "devnet" for testing, "mainnet-beta" for production)
 const connection = new Connection("https://api.devnet.solana.com", 'confirmed');
@@ -64,3 +71,8 @@ async function startBot() {
 }
 
 startBot();
+
+// Helper function to pause execution for a specified time (in milliseconds)
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
