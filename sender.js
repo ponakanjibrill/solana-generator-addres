@@ -1,18 +1,28 @@
 require('dotenv').config({ path: './data.env' }); // Automatically load from data.env
 
 const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram } = require('@solana/web3.js');
-const base64 = require('base64-js');
 
-// Log the loaded environment variables to check the values
-console.log('PRIVATE_KEYS:', process.env.PRIVATE_KEYS);  // Debugging line
-const privateKeys = JSON.parse(process.env.PRIVATE_KEYS || '[]');  // Default to empty array if not set
+// Read the private key from the .env file as a hexadecimal string
+const privateKeyHex = process.env.PRIVATE_KEY;
 const recipientAddress = process.env.RECIPIENT_ADDRESS;
 
-// Check if private keys are loaded correctly
-if (!privateKeys || privateKeys.length === 0) {
-  console.log('No private keys found in environment variables.');
+// Ensure the private key is provided in the .env file
+if (!privateKeyHex) {
+  console.log('No private key found in environment variables.');
   process.exit(1);
 }
+
+// Convert the hexadecimal private key string to a Uint8Array
+const privateKeyBytes = Buffer.from(privateKeyHex, 'hex'); // Converts hex to byte array
+
+// Check if private key size is valid (64 bytes)
+if (privateKeyBytes.length !== 64) {
+  console.log('Invalid private key size. It must be 64 bytes.');
+  process.exit(1);
+}
+
+// Create Keypair from the raw private key
+const senderAccount = Keypair.fromSecretKey(privateKeyBytes);
 
 // Set up Solana connection (use "devnet" for testing, "mainnet-beta" for production)
 const connection = new Connection("https://api.devnet.solana.com", 'confirmed');
@@ -39,33 +49,27 @@ async function sendTokens(senderAccount, recipientAddress, amount) {
   return signature;
 }
 
-// Main function to process the accounts
-async function processAccounts() {
-  for (let privateKeyBase64 of privateKeys) {
-    // Decode the private key from base64
-    const privateKeyBytes = base64.toByteArray(privateKeyBase64);
-    const senderAccount = Keypair.fromSecretKey(privateKeyBytes);
+// Main function to process the account
+async function processAccount() {
+  // Get balance of the account
+  const balance = await getBalance(senderAccount);
+  console.log(`Account ${senderAccount.publicKey.toBase58()} balance: ${balance / LAMPORTS_PER_SOL} SOL`);
 
-    // Get balance of the account
-    const balance = await getBalance(senderAccount);
-    console.log(`Account ${senderAccount.publicKey.toBase58()} balance: ${balance / LAMPORTS_PER_SOL} SOL`);
-
-    // Check if balance is sufficient (example: minimum 1 SOL)
-    if (balance >= 1 * LAMPORTS_PER_SOL) {  // 1 SOL = 1,000,000,000 lamports
-      const amountToSend = balance - 0.5 * LAMPORTS_PER_SOL;  // Send all except 0.5 SOL
-      console.log(`Sending ${amountToSend / LAMPORTS_PER_SOL} SOL from account ${senderAccount.publicKey.toBase58()} to ${recipientAddress}`);
-      const response = await sendTokens(senderAccount, recipientAddress, amountToSend);
-      console.log(`Transaction response: ${response}`);
-    } else {
-      console.log(`Insufficient funds to send from ${senderAccount.publicKey.toBase58()}`);
-    }
+  // Check if balance is sufficient (example: minimum 1 SOL)
+  if (balance >= 1 * LAMPORTS_PER_SOL) {  // 1 SOL = 1,000,000,000 lamports
+    const amountToSend = balance - 0.5 * LAMPORTS_PER_SOL;  // Send all except 0.5 SOL
+    console.log(`Sending ${amountToSend / LAMPORTS_PER_SOL} SOL from account ${senderAccount.publicKey.toBase58()} to ${recipientAddress}`);
+    const response = await sendTokens(senderAccount, recipientAddress, amountToSend);
+    console.log(`Transaction response: ${response}`);
+  } else {
+    console.log(`Insufficient funds to send from ${senderAccount.publicKey.toBase58()}`);
   }
 }
 
 // Run the process every 10 seconds
 async function startBot() {
   while (true) {
-    await processAccounts();
+    await processAccount();
     await sleep(10000);  // Wait for 10 seconds before checking again
   }
 }
