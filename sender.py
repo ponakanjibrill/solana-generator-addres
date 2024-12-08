@@ -1,6 +1,6 @@
 import os
 import base64
-from solana.keypair import Keypair
+from solders.keypair import Keypair  # Import Keypair from solders
 from solana.rpc.api import Client
 from solana.transaction import Transaction
 from solana.system_program import TransferParams, transfer
@@ -51,7 +51,7 @@ def process_accounts():
     for private_key_base64 in private_keys:
         # Decode the private key from base64
         private_key_bytes = base64.b64decode(private_key_base64)
-        sender_account = Keypair.from_secret_key(private_key_bytes)  # Updated method to create account
+        sender_account = Keypair.from_secret_key(private_key_bytes)  # Create account using solders' Keypair
         
         # Get the balance of the account
         balance = get_balance(sender_account)
