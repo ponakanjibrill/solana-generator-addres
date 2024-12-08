@@ -1,19 +1,26 @@
 require('dotenv').config({ path: './data.env' }); // Automatically load from data.env
 
+const bs58 = require('bs58');
 const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
 
-// Read the private key from the .env file as a hexadecimal string
-const privateKeyHex = process.env.PRIVATE_KEY;
+// Read the private key from the .env file as a Base58 string
+const privateKeyBase58 = process.env.PRIVATE_KEY;
 const recipientAddress = process.env.RECIPIENT_ADDRESS;
 
 // Ensure the private key and recipient address are provided in the .env file
-if (!privateKeyHex || !recipientAddress) {
+if (!privateKeyBase58 || !recipientAddress) {
   console.log('Private key or recipient address is missing in environment variables.');
   process.exit(1);
 }
 
-// Convert the hexadecimal private key string to a Uint8Array
-const privateKeyBytes = Buffer.from(privateKeyHex, 'hex'); // Converts hex to byte array
+// Decode the Base58 private key to a Uint8Array
+let privateKeyBytes;
+try {
+  privateKeyBytes = bs58.decode(privateKeyBase58); // Decodes the Base58 string to byte array
+} catch (error) {
+  console.log('Invalid Base58 private key format.');
+  process.exit(1);
+}
 
 // Check if private key size is valid (64 bytes)
 if (privateKeyBytes.length !== 64) {
