@@ -1,5 +1,5 @@
-const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
-const { getAssociatedTokenAddress, createTransferInstruction } = require('@solana/spl-token');
+const { Connection, Keypair, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
+const { createTransferInstruction } = require('@solana/spl-token');
 const readlineSync = require('readline-sync');
 const bs58 = require('bs58');
 require('dotenv').config({ path: './data.env' });
@@ -76,30 +76,39 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
 // Fungsi untuk mengirim Token SPL
 async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount) {
   try {
-    // Validasi mint address dan public key
-    if (!mintAddress || !recipientPublicKey) {
-      console.log('------\nSendTransactionError: Mint address atau recipient public key tidak valid\n------');
+    // Dapatkan alamat token pengirim
+    const senderTokenAddress = await connection.getParsedTokenAccountsByOwner(
+      senderAccount.publicKey,
+      { programId: mintAddress }  // Program ID SPL Token yang diambil langsung dari mintAddress
+    );
+
+    if (!senderTokenAddress || senderTokenAddress.length === 0) {
+      console.log("------\nError: Akun pengirim tidak memiliki token SPL yang diperlukan.\n------");
       return null;
     }
 
-    // Dapatkan alamat token terkait dengan akun pengirim
-    const senderTokenAddress = await getAssociatedTokenAddress(
-      mintAddress, // Mint address token
-      senderAccount.publicKey // Public key pengirim
-    );
+    // Mengambil alamat token pengirim yang sesuai dengan mint address yang ditemukan
+    let senderTokenAccount = null;
+    for (const { account } of senderTokenAddress.value) {
+      const tokenMintAddress = account.data.parsed.info.mint;
+      if (tokenMintAddress === mintAddress) {
+        senderTokenAccount = account;
+        break;
+      }
+    }
 
-    // Dapatkan alamat token penerima
-    const recipientTokenAddress = await getAssociatedTokenAddress(
-      mintAddress, // Mint address token
-      recipientPublicKey // Public key penerima
-    );
+    if (!senderTokenAccount) {
+      console.log(`------\nError: Alamat token untuk mint address ${mintAddress} tidak ditemukan pada akun pengirim.\n------`);
+      return null;
+    }
 
+    // Buat transaksi transfer
     const transaction = new Transaction().add(
       createTransferInstruction(
-        senderTokenAddress, // Alamat token pengirim
-        recipientTokenAddress, // Alamat token penerima
-        senderAccount.publicKey, // Public key pengirim
-        amount, // Jumlah token yang akan dikirim
+        senderTokenAccount.pubkey,  // Alamat token pengirim
+        recipientPublicKey,  // Alamat penerima
+        senderAccount.publicKey,  // Public key pengirim
+        amount,  // Jumlah token yang akan dikirim
         []
       )
     );
@@ -119,19 +128,16 @@ async function getSPLTokens(account) {
   const tokens = [];
   try {
     // Mendapatkan daftar akun token SPL yang terkait dengan akun
-    const tokenAccounts = await connection.getParsedTokenAccountsByOwner(account.publicKey, {
-      programId: new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"), // Program ID untuk SPL Token
-    });
+    const tokenAccounts = await connection.getParsedTokenAccountsByOwner(account.publicKey);
 
-    if (!tokenAccounts.value || tokenAccounts.value.length === 0) {
-      console.log('------\nAkun ini tidak memiliki token SPL.\n------');
-      return [];
-    }
+    if (tokenAccounts && tokenAccounts.value) {
+      for (let { pubkey, account } of tokenAccounts.value) {
+        const mintAddress = account.data.parsed.info.mint;  // Mint address adalah Token Address
+        const tokenAmount = account.data.parsed.info.tokenAmount.amount;
 
-    for (let { pubkey, account } of tokenAccounts.value) {
-      const mintAddress = account.data.parsed.info.mint;
-      const tokenAmount = account.data.parsed.info.tokenAmount.amount;
-      tokens.push({ mintAddress, amount: tokenAmount, pubkey });
+        // Menambahkan informasi token ke dalam array tokens
+        tokens.push({ mintAddress, amount: tokenAmount, pubkey });
+      }
     }
   } catch (error) {
     console.log("Error mendapatkan daftar token SPL: ", error.message);
@@ -158,6 +164,7 @@ async function processAccount(senderAccount, recipientPublicKey) {
   const splTokens = await getSPLTokens(senderAccount);
   if (splTokens.length > 0) {
     for (let { mintAddress, amount } of splTokens) {
+      console.log(`Mengirim ${amount} token SPL dari Mint Address: ${mintAddress}`);
       const splResponse = await sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount);
     }
   } else {
