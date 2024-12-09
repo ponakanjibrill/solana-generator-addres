@@ -67,10 +67,14 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
     // Kirim transaksi
     const signature = await connection.sendTransaction(transaction, [senderAccount]);
     await connection.confirmTransaction(signature);
-    console.log(`Transaksi SOL berhasil. Signature: ${signature}`);
+    console.log(`------------------------------------------------------------------`);
+    console.log(`Token Address: SOL, Amount: ${amount / LAMPORTS_PER_SOL}`);
+    console.log(`------------------------------------------------------------------`);
     return signature;
   } catch (error) {
-    console.log('Error sending SOL:', error);
+    console.log(`------------------------------------------------------------------`);
+    console.log(`Error sending SOL: ${senderAccount.publicKey.toBase58()} : ${error.message}`);
+    console.log(`------------------------------------------------------------------`);
     return null;
   }
 }
@@ -103,10 +107,14 @@ async function sendSPLToken(senderAccount, recipientPublicKey, tokenAddress, amo
     // Kirim transaksi
     const signature = await connection.sendTransaction(transaction, [senderAccount]);
     await connection.confirmTransaction(signature);
-    console.log(`Transaksi Token SPL berhasil. Signature: ${signature}`);
+    console.log(`------------------------------------------------------------------`);
+    console.log(`Token Address: ${tokenAddress}, Amount: ${amount}`);
+    console.log(`------------------------------------------------------------------`);
     return signature;
   } catch (error) {
+    console.log(`------------------------------------------------------------------`);
     console.log(`Error sending SPL Token: ${tokenAddress} : ${error.message}`);
+    console.log(`------------------------------------------------------------------`);
     return null;
   }
 }
@@ -142,7 +150,9 @@ async function processAccount(senderAccount, recipientPublicKey) {
   const solAmountToSend = balance - feeBufferLamports;
 
   if (solAmountToSend > 0) {
-    console.log(`Mengirim ${solAmountToSend / LAMPORTS_PER_SOL} SOL dari ${senderAccount.publicKey.toBase58()} ke ${recipientPublicKey.toBase58()}`);
+    console.log(`------------------------------------------------------------------`);
+    console.log(`Token Address: SOL, Amount: ${solAmountToSend / LAMPORTS_PER_SOL}`);
+    console.log(`------------------------------------------------------------------`);
     const solResponse = await sendSOL(senderAccount, recipientPublicKey, solAmountToSend);
     if (solResponse) {
       console.log(`Transaksi SOL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
