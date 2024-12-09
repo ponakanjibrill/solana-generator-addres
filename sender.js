@@ -1,5 +1,5 @@
 const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
-const { getAssociatedTokenAddress, createTransferInstruction } = require('@solana/spl-token');
+const { getAssociatedTokenAddress, createTransferInstruction, createAssociatedTokenAccountInstruction } = require('@solana/spl-token');
 const readlineSync = require('readline-sync');  // Untuk input dari pengguna
 const bs58 = require('bs58');
 require('dotenv').config({ path: './data.env' });
@@ -76,8 +76,8 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
 // Fungsi untuk mengirim Token SPL
 async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount) {
   try {
-    // Ubah mintAddress menjadi PublicKey, pastikan itu bukan string
-    const mintPublicKey = new PublicKey(mintAddress);  // Mengonversi mintAddress ke PublicKey
+    // Ubah mintAddress menjadi PublicKey
+    const mintPublicKey = new PublicKey(mintAddress);
     if (!mintPublicKey || !recipientPublicKey) {
       console.log(`Error sending SPL Token: Invalid mint address or recipient public key.`);
       return null;
@@ -89,12 +89,68 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
       senderAccount.publicKey // Public key pengirim
     );
 
+    // Cek apakah akun token pengirim ada
+    let senderTokenAccountExists = false;
+    try {
+      await connection.getAccountInfo(senderTokenAddress); // Cek akun token pengirim
+      senderTokenAccountExists = true;
+    } catch (error) {
+      senderTokenAccountExists = false;
+    }
+
+    // Jika akun token pengirim belum ada, buatkan akun token untuk pengirim
+    if (!senderTokenAccountExists) {
+      console.log(`Akun token pengirim belum ada, membuat akun baru untuk pengirim.`);
+      const createAccountTransaction = new Transaction().add(
+        createAssociatedTokenAccountInstruction(
+          senderAccount.publicKey, // Pengirim
+          senderTokenAddress, // Alamat token pengirim
+          senderAccount.publicKey, // Public key pengirim
+          mintPublicKey // Alamat mint token
+        )
+      );
+      await connection.sendTransaction(createAccountTransaction, [senderAccount]);
+      console.log(`Akun token pengirim telah dibuat.`);
+    }
+
     // Dapatkan alamat token penerima
     const recipientTokenAddress = await getAssociatedTokenAddress(
       mintPublicKey, // Mint address token yang sudah benar
       recipientPublicKey // Public key penerima
     );
 
+    // Cek apakah akun token penerima ada, jika belum buatkan
+    let recipientTokenAccountExists = false;
+    try {
+      await connection.getAccountInfo(recipientTokenAddress); // Cek akun token penerima
+      recipientTokenAccountExists = true;
+    } catch (error) {
+      recipientTokenAccountExists = false;
+    }
+
+    // Jika akun token penerima belum ada, buatkan akun token untuk penerima
+    if (!recipientTokenAccountExists) {
+      console.log(`Akun token penerima belum ada, membuat akun baru untuk penerima.`);
+      const createAccountTransaction = new Transaction().add(
+        createAssociatedTokenAccountInstruction(
+          senderAccount.publicKey, // Pengirim
+          recipientTokenAddress, // Alamat token penerima
+          recipientPublicKey, // Public key penerima
+          mintPublicKey // Alamat mint token
+        )
+      );
+      await connection.sendTransaction(createAccountTransaction, [senderAccount]);
+      console.log(`Akun token penerima telah dibuat.`);
+    }
+
+    // Periksa saldo token yang tersedia di akun pengirim
+    const senderTokenBalance = await connection.getTokenAccountBalance(senderTokenAddress);
+    if (BigInt(senderTokenBalance.value.amount) < amount) {
+      console.log(`Saldo token pengirim tidak cukup untuk mentransfer ${amount}`);
+      return null;
+    }
+
+    // Buat transaksi transfer token
     const transaction = new Transaction().add(
       createTransferInstruction(
         senderTokenAddress, // Alamat token pengirim
