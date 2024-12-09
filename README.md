@@ -85,8 +85,7 @@ Check Hasil generator
    nano wallet.txt
    ```
 
-
-2. For Bot TX (Support MultiAccount)
+For Bot TX (Support MultiAccount)
 
 
 
