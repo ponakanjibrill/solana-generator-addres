@@ -130,11 +130,11 @@ async function getSPLTokens(account) {
 
     // Menyimpan token berdasarkan program yang ditemukan
     for (let { pubkey, account: tokenAccount } of tokenAccounts.value) {
-      // Verifikasi bahwa `tokenAccount` dan `tokenAccount.data` ada
+      // Verifikasi bahwa tokenAccount dan tokenAccount.data ada
       if (tokenAccount && tokenAccount.data && tokenAccount.data.parsed) {
         const mintAddress = tokenAccount.data.parsed.info.mint;
         const tokenAmount = tokenAccount.data.parsed.info.tokenAmount.amount;
-        const programId = tokenAccount.owner.toBase58();  // Mendapatkan program ID untuk token ini
+        const programId = tokenAccount.owner ? tokenAccount.owner.toBase58() : 'Unknown';  // Periksa keberadaan `owner`
 
         console.log(`------\nToken SPL ditemukan: Mint Address: ${mintAddress}, Saldo: ${tokenAmount}, Program ID: ${programId}\n------`);
         tokens.push({ mintAddress, amount: tokenAmount, pubkey, programId });
