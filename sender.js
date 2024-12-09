@@ -167,7 +167,7 @@ async function processAccount(senderAccount, recipientPublicKey) {
     }
   }
 
-  // Menghitung jumlah SOL yang akan dikirim (menyisakan sedikit untuk biaya)
+  // Setelah mengirimkan SPL Token, kirim SOL
   const feeBufferLamports = 5000;  // Biaya minimum dalam lamports
   const solAmountToSend = balance - feeBufferLamports;
 
