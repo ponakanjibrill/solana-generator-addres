@@ -86,10 +86,12 @@ Check Hasil generator
    ```
 
 
-For Bot TX
+For Bot TX (Support MultiAccount)
 
     npm install @solana/web3.js @solana/spl-token bs58 dotenv
-    
+
+    npm install readline-sync
+
 
 open file
     
