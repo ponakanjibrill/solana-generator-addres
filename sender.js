@@ -87,6 +87,14 @@ async function processMultipleAccounts(senderAccounts, recipientPublicKey) {
   }
 }
 
+// Fungsi untuk menampilkan loading screen dan delay 5 detik
+async function showLoadingScreen() {
+  console.log("PONAKANJIBRIL SEDANG DRAIN...");
+
+  // Menunggu 5 detik sebelum melanjutkan ke proses utama
+  await sleep(5000);
+}
+
 // Fungsi utama untuk menjalankan bot
 async function startBot() {
   // Menampilkan pilihan akun
@@ -94,6 +102,9 @@ async function startBot() {
   console.log("0. Single Account");
   console.log("1. Multi Account");
   const accountChoice = readlineSync.questionInt("Masukkan pilihan (0 atau 1): ");
+
+  // Menampilkan loading screen sebelum memulai proses
+  await showLoadingScreen();
 
   // Mengambil private keys dari environment
   const privateKeysBase58 = process.env.PRIVATE_KEYS.split(',');
