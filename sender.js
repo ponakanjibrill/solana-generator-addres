@@ -134,6 +134,8 @@ async function getSPLTokens(account) {
       if (tokenAccount && tokenAccount.data && tokenAccount.data.parsed) {
         const mintAddress = tokenAccount.data.parsed.info.mint;
         const tokenAmount = tokenAccount.data.parsed.info.tokenAmount.amount;
+
+        // Pastikan `owner` ada dan valid sebelum akses `toBase58`
         const programId = tokenAccount.owner ? tokenAccount.owner.toBase58() : 'Unknown';  // Periksa keberadaan `owner`
 
         console.log(`------\nToken SPL ditemukan: Mint Address: ${mintAddress}, Saldo: ${tokenAmount}, Program ID: ${programId}\n------`);
@@ -216,9 +218,4 @@ async function startBot() {
 }
 
 // Fungsi tidur untuk menunda eksekusi
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// Mulai bot
-startBot();
+function sleep(ms
