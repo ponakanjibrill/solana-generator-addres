@@ -61,7 +61,7 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
     await connection.confirmTransaction(signature);
     return signature;
   } catch (error) {
-    console.log('SendTransactionError: Gagal mengirim SOL');
+    console.log('------\nSendTransactionError: Gagal mengirim SOL\n------');
     return null;
   }
 }
@@ -71,7 +71,7 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
   try {
     // Validasi mint address dan public key
     if (!mintAddress || !recipientPublicKey) {
-      console.log('SendTransactionError: Mint address atau recipient public key tidak valid');
+      console.log('------\nSendTransactionError: Mint address atau recipient public key tidak valid\n------');
       return null;
     }
 
@@ -102,7 +102,7 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
     await connection.confirmTransaction(signature);
     return signature;
   } catch (error) {
-    console.log('SendTransactionError: Gagal mengirim Token SPL');
+    console.log('------\nSendTransactionError: Gagal mengirim Token SPL\n------');
     return null;
   }
 }
@@ -149,7 +149,7 @@ async function processAccount(senderAccount, recipientPublicKey) {
       const splResponse = await sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount);
     }
   } else {
-    console.log('Tidak ada token SPL yang ditemukan di akun.');
+    console.log('------\nTidak ada token SPL yang ditemukan di akun.\n------');
   }
 }
 
