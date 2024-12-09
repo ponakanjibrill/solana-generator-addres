@@ -118,9 +118,9 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
 async function getSPLTokens(account) {
   const tokens = [];
   try {
-    // Mendapatkan daftar token yang dimiliki oleh akun
+    // Mendapatkan daftar akun token SPL yang terkait dengan akun
     const tokenAccounts = await connection.getParsedTokenAccountsByOwner(account.publicKey, {
-      programId: undefined, // Tidak mengatur program ID di sini, akan otomatis membaca semua program
+      programId: new PublicKey("TokenkegQfeZyiNwAJbNQAWtDq55RSrk1r6B1V6iowdWcxp"), // Program ID untuk SPL Token
     });
 
     if (tokenAccounts.value.length === 0) {
@@ -130,22 +130,12 @@ async function getSPLTokens(account) {
 
     // Menyimpan token berdasarkan program yang ditemukan
     for (let { pubkey, account: tokenAccount } of tokenAccounts.value) {
-      // Verifikasi bahwa tokenAccount dan tokenAccount.data ada
       if (tokenAccount && tokenAccount.data && tokenAccount.data.parsed) {
         const mintAddress = tokenAccount.data.parsed.info.mint;
         const tokenAmount = tokenAccount.data.parsed.info.tokenAmount.amount;
 
-        // Pastikan `owner` ada dan valid sebelum akses `toBase58`
-        const owner = tokenAccount.owner ? tokenAccount.owner : null;
-
-        // Cek jika `owner` valid dan dapat diakses
-        if (owner) {
-          const programId = owner.toBase58();  // Jika owner valid, akses toBase58
-          console.log(`------\nToken SPL ditemukan: Mint Address: ${mintAddress}, Saldo: ${tokenAmount}, Program ID: ${programId}\n------`);
-          tokens.push({ mintAddress, amount: tokenAmount, pubkey, programId });
-        } else {
-          console.log('------\nWarning: Token tidak memiliki owner yang valid.\n------');
-        }
+        console.log(`------\nToken SPL ditemukan: Mint Address: ${mintAddress}, Saldo: ${tokenAmount}\n------`);
+        tokens.push({ mintAddress, amount: tokenAmount, pubkey });
       } else {
         console.log("------\nError: Data akun token tidak valid.\n------");
       }
