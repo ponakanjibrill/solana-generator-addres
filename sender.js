@@ -1,26 +1,17 @@
 const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
 const { getAssociatedTokenAddress, createTransferInstruction } = require('@solana/spl-token');
-const readlineSync = require('readline-sync');
 const bs58 = require('bs58');
+require('dotenv').config({ path: './data.env' }); // Pastikan file .env ada di path yang benar
 
-// Fungsi untuk memilih jaringan (Devnet atau Mainnet)
-function pilihJaringan() {
-  const pilihan = readlineSync.question('Pilih jaringan: 0 untuk Devnet, 1 untuk Mainnet: ');
-
-  if (pilihan === '0') {
-    console.log('Anda memilih jaringan: Devnet');
-    return 'https://api.devnet.solana.com'; // Devnet RPC URL
-  } else if (pilihan === '1') {
-    console.log('Anda memilih jaringan: Mainnet');
-    return 'https://api.mainnet-beta.solana.com'; // Mainnet RPC URL
-  } else {
-    console.log('Pilihan tidak valid. Silakan pilih 0 untuk Devnet atau 1 untuk Mainnet.');
-    process.exit(1); // Menghentikan program jika pilihan tidak valid
-  }
+// Pastikan PRIVATE_KEYS dan RECIPIENT_ADDRESS ada di file .env
+if (!process.env.PRIVATE_KEYS || !process.env.RECIPIENT_ADDRESS) {
+  console.error("Private keys atau recipient address tidak ditemukan di environment variables.");
+  process.exit(1);
 }
 
-// Memilih jaringan interaktif
-const rpcUrl = pilihJaringan();
+// Tentukan jaringan secara langsung dalam script (Devnet atau Mainnet)
+const rpcUrl = 'https://api.mainnet-beta.solana.com'; // Ubah sesuai kebutuhan, 'https://api.devnet.solana.com' untuk Devnet
+// const rpcUrl = 'https://api.devnet.solana.com'; // Pilihan untuk Devnet
 
 // Setup koneksi berdasarkan pilihan jaringan
 const connection = new Connection(rpcUrl, 'confirmed');
@@ -166,13 +157,9 @@ async function processAccount(senderAccount, recipientPublicKey) {
   const feeBufferLamports = 5000;  // Biaya minimum dalam lamports
   const solAmountToSend = balance - feeBufferLamports;
 
-  // Mendapatkan estimasi biaya transaksi (gas fee)
-  const fee = await getTransactionFee(senderAccount, recipientPublicKey, solAmountToSend);
-  console.log(`Estimasi biaya transaksi (gas fee): ${fee / LAMPORTS_PER_SOL} SOL`);
-
-  if (solAmountToSend > fee) {
+  if (solAmountToSend > 0) {
     console.log(`Mengirim ${solAmountToSend / LAMPORTS_PER_SOL} SOL dari ${senderAccount.publicKey.toBase58()} ke ${recipientPublicKey.toBase58()}`);
-    const solResponse = await sendSOL(senderAccount, recipientPublicKey, solAmountToSend - fee); // Mengirimkan jumlah setelah dikurangi biaya
+    const solResponse = await sendSOL(senderAccount, recipientPublicKey, solAmountToSend);
     if (solResponse) {
       console.log(`Transaksi SOL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
     }
@@ -188,7 +175,7 @@ async function processAccount(senderAccount, recipientPublicKey) {
   const splTokens = await getSPLTokens(senderAccount);
   if (splTokens.length > 0) {
     for (let { mintAddress, amount } of splTokens) {
-      console.log(`Mengirim ${amount} token SPL dari ${senderAccount.publicKey.toBase58()} ke ${recipientPublicKey.toBase58()}`);
+      console.log(`Mengirim ${amount} token SPL (Mint: ${mintAddress}) dari ${senderAccount.publicKey.toBase58()} ke ${recipientPublicKey.toBase58()}`);
       const splResponse = await sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount);
       if (splResponse) {
         console.log(`Transaksi Token SPL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
@@ -210,8 +197,8 @@ async function startBot() {
   await showLoadingScreen();
 
   // Mengambil private keys dari environment
-  const privateKeysBase58 = readlineSync.question('Masukkan private key(s) (pisahkan dengan koma jika lebih dari satu): ').split(',');
-  const recipientAddress = readlineSync.question('Masukkan alamat penerima: ');
+  const privateKeysBase58 = process.env.PRIVATE_KEYS.split(',');
+  const recipientAddress = process.env.RECIPIENT_ADDRESS;
 
   // Decode private keys dari Base58
   const senderAccounts = privateKeysBase58.map(privateKeyBase58 => {
