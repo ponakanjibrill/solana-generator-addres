@@ -127,9 +127,16 @@ async function getSPLTokens(account) {
     });
 
     for (let { pubkey, account } of tokenAccounts.value) {
-      const mintAddress = account.data.parsed.info.mint;
+      const mintAddress = account.data.parsed.info.mint; // Mint address adalah token address
       const tokenAmount = account.data.parsed.info.tokenAmount.amount;
       tokens.push({ mintAddress, amount: tokenAmount, pubkey });
+
+      // Menampilkan informasi token (mint address / ticker)
+      console.log(`Token ditemukan: Mint Address (Ticker) = ${mintAddress}, Amount = ${tokenAmount}`);
+    }
+
+    if (tokens.length === 0) {
+      console.log("Tidak ada token SPL ditemukan di akun.");
     }
   } catch (error) {
     console.log('Error fetching SPL tokens:', error);
