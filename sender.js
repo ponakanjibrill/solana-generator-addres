@@ -2,6 +2,7 @@ require('dotenv').config({ path: './data.env' }); // Automatically load from dat
 
 const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
 const bs58 = require('bs58'); // Ensure bs58 is properly imported
+const { Token, TOKEN_PROGRAM_ID } = require('@solana/spl-token'); // Import SPL Token library
 
 // Read the private key from the .env file as a Base58 string
 const privateKeyBase58 = process.env.PRIVATE_KEY;
@@ -37,19 +38,33 @@ try {
   process.exit(1);
 }
 
-// Function to get balance of an account
+// Function to get balance of an account (both SOL and SPL tokens)
 async function getBalance(account) {
   try {
-    const balance = await connection.getBalance(account.publicKey);
-    return balance;
+    // Fetch the balance of SOL
+    const solBalance = await connection.getBalance(account.publicKey);
+
+    // Fetch the balance of all SPL tokens associated with the sender's wallet
+    const tokenAccounts = await connection.getParsedTokenAccountsByOwner(account.publicKey, {
+      programId: TOKEN_PROGRAM_ID
+    });
+
+    // Collect all token balances
+    const tokenBalances = tokenAccounts.value.map((tokenAccount) => {
+      const tokenAmount = tokenAccount.account.data.parsed.info.tokenAmount;
+      const mintAddress = tokenAccount.account.data.parsed.info.mint;
+      return { mint: mintAddress, amount: tokenAmount.amount };
+    });
+
+    return { solBalance, tokenBalances };
   } catch (error) {
     console.log('Error fetching balance:', error);
     process.exit(1);
   }
 }
 
-// Function to send tokens from sender to recipient
-async function sendTokens(senderAccount, recipientPublicKey, amount) {
+// Function to send SOL tokens from sender to recipient
+async function sendSOL(senderAccount, recipientPublicKey, amount) {
   try {
     const transaction = new Transaction().add(
       SystemProgram.transfer({
@@ -62,41 +77,89 @@ async function sendTokens(senderAccount, recipientPublicKey, amount) {
     // Send the transaction
     const signature = await connection.sendTransaction(transaction, [senderAccount]);
     await connection.confirmTransaction(signature);
+    console.log(`SOL Transaction successful: ${signature}`);
     return signature;
   } catch (error) {
-    console.log('Error sending transaction:', error);
-    process.exit(1);
+    console.log('Error sending SOL:', error);
+    return null;
   }
 }
 
-// Main function to process the account
+// Function to send SPL tokens from sender to recipient
+async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount) {
+  try {
+    const token = new Token(connection, new PublicKey(mintAddress), TOKEN_PROGRAM_ID, senderAccount);
+    const senderTokenAccount = await token.getOrCreateAssociatedAccountInfo(senderAccount.publicKey);
+    const recipientTokenAccount = await token.getOrCreateAssociatedAccountInfo(recipientPublicKey);
+
+    const transaction = new Transaction().add(
+      token.transfer(
+        senderTokenAccount.address,
+        recipientTokenAccount.address,
+        senderAccount.publicKey,
+        [],
+        amount
+      )
+    );
+
+    // Send the transaction
+    const signature = await connection.sendTransaction(transaction, [senderAccount]);
+    await connection.confirmTransaction(signature);
+    console.log(`SPL Token Transaction successful: ${signature}`);
+    return signature;
+  } catch (error) {
+    console.log('Error sending SPL token:', error);
+    return null;
+  }
+}
+
+// Main function to process the account and send SOL or SPL tokens
 async function processAccount() {
-  // Get balance of the account
   const balance = await getBalance(senderAccount);
-  console.log(`Account ${senderAccount.publicKey.toBase58()} balance: ${balance / LAMPORTS_PER_SOL} SOL`);
+  console.log(`Account balance: ${balance.solBalance / LAMPORTS_PER_SOL} SOL`);
+  console.log('Account SPL Token Balances:');
+  
+  // List each SPL token balance
+  balance.tokenBalances.forEach(token => {
+    console.log(`- Mint: ${token.mint}, Amount: ${token.amount}`);
+  });
 
-  // Check if balance is sufficient (example: minimum 1 SOL)
-  if (balance >= 1 * LAMPORTS_PER_SOL) {  // 1 SOL = 1,000,000,000 lamports
-    const amountToSend = balance - 0.5 * LAMPORTS_PER_SOL;  // Send all except 0.5 SOL
-    console.log(`Sending ${amountToSend / LAMPORTS_PER_SOL} SOL from account ${senderAccount.publicKey.toBase58()} to ${recipientPublicKey.toBase58()}`);
-    const response = await sendTokens(senderAccount, recipientPublicKey, amountToSend);
-    console.log(`Transaction response: ${response}`);
-  } else {
-    console.log(`Insufficient funds to send from ${senderAccount.publicKey.toBase58()}`);
+  // Send SOL (if balance is more than 1000 lamports)
+  const solAmountToSend = balance.solBalance - 1000; // Send all except 1000 lamports (0.000001 SOL)
+  if (solAmountToSend > 0) {
+    console.log(`Sending ${solAmountToSend / LAMPORTS_PER_SOL} SOL to ${recipientPublicKey.toBase58()}`);
+    const solResponse = await sendSOL(senderAccount, recipientPublicKey, solAmountToSend);
+    if (solResponse) {
+      console.log(`SOL Transaction successful.`);
+    }
   }
+
+  // Send each SPL token found in the wallet
+  for (const token of balance.tokenBalances) {
+    const splAmountToSend = token.amount;
+    if (splAmountToSend > 0) {
+      console.log(`Sending ${splAmountToSend} tokens (Mint: ${token.mint}) to ${recipientPublicKey.toBase58()}`);
+      const splResponse = await sendSPLToken(senderAccount, recipientPublicKey, token.mint, splAmountToSend);
+      if (splResponse) {
+        console.log(`SPL Token Transaction successful.`);
+      }
+    }
+  }
+
+  // Fetch the balance again after the transaction
+  const updatedBalance = await getBalance(senderAccount);
+  console.log(`Updated Account balance: ${updatedBalance.solBalance / LAMPORTS_PER_SOL} SOL`);
+  console.log('Updated Account SPL Token Balances:');
+  updatedBalance.tokenBalances.forEach(token => {
+    console.log(`- Mint: ${token.mint}, Amount: ${token.amount}`);
+  });
 }
 
-// Run the process every 10 seconds
-async function startBot() {
-  while (true) {
-    await processAccount();
-    await sleep(10000);  // Wait for 10 seconds before checking again
-  }
+// Run the process periodically with a delay (throttling CPU usage)
+function startBot() {
+  setInterval(async () => {
+    await processAccount(); // Process account every 5 seconds (5000 ms)
+  }, 5000); // 5 seconds delay
 }
 
 startBot();
-
-// Helper function to pause execution for a specified time (in milliseconds)
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
