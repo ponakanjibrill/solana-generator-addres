@@ -1,20 +1,19 @@
-const { Connection, Keypair, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
-const { createTransferInstruction } = require('@solana/spl-token');
-const readlineSync = require('readline-sync');
+const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
+const { getAssociatedTokenAddress, createTransferInstruction } = require('@solana/spl-token');
+const readlineSync = require('readline-sync');  // Untuk input dari pengguna
 const bs58 = require('bs58');
 require('dotenv').config({ path: './data.env' });
 
 // Pastikan PRIVATE_KEYS dan RECIPIENT_ADDRESS ada di file .env
 if (!process.env.PRIVATE_KEYS || !process.env.RECIPIENT_ADDRESS) {
+  console.error("Private keys atau recipient address tidak ditemukan di environment variables.");
   process.exit(1);
 }
 
 // Meminta pengguna memilih jaringan
-console.log("------");
 console.log("Pilih jaringan:");
-console.log("0 - Devnet");
-console.log("1 - Mainnet");
-console.log("------");
+console.log("0. Devnet");
+console.log("1. Mainnet");
 
 const networkChoice = readlineSync.question("Masukkan pilihan (0 atau 1): ");
 
@@ -24,7 +23,7 @@ if (networkChoice === '0') {
 } else if (networkChoice === '1') {
   rpcUrl = 'https://api.mainnet-beta.solana.com';  // Mainnet RPC URL
 } else {
-  console.log("------\nPilihan tidak valid. Silakan pilih 0 untuk Devnet atau 1 untuk Mainnet.\n------");
+  console.error('Pilihan tidak valid. Silakan pilih 0 untuk Devnet atau 1 untuk Mainnet.');
   process.exit(1);
 }
 
@@ -37,6 +36,7 @@ async function getBalance(account) {
     const balance = await connection.getBalance(account.publicKey);
     return balance;
   } catch (error) {
+    console.log('Error fetching balance:', error);
     return 0;  // Kembali 0 jika gagal
   }
 }
@@ -57,6 +57,7 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
     try {
       recentBlockhash = await connection.getRecentBlockhash();
     } catch (error) {
+      console.log('Gagal mendapatkan recent blockhash, melanjutkan transaksi tanpa blockhash');
       recentBlockhash = { blockhash: '' }; // Menggunakan blockhash kosong
     }
 
@@ -66,9 +67,10 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
     // Kirim transaksi
     const signature = await connection.sendTransaction(transaction, [senderAccount]);
     await connection.confirmTransaction(signature);
+    console.log(`Transaksi SOL berhasil. Signature: ${signature}`);
     return signature;
   } catch (error) {
-    console.log('------\nSendTransactionError: Gagal mengirim SOL\n------');
+    console.log('Error sending SOL:', error);
     return null;
   }
 }
@@ -76,41 +78,30 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
 // Fungsi untuk mengirim Token SPL
 async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount) {
   try {
-    // Dapatkan alamat token pengirim
-    const senderTokenAccount = await connection.getParsedTokenAccountsByOwner(
-      senderAccount.publicKey,
-      { programId: new PublicKey(mintAddress) }  // Program ID SPL Token yang diambil langsung dari mintAddress
+    // Validasi mint address dan public key
+    if (!mintAddress || !recipientPublicKey) {
+      console.log('Mint address atau recipient public key tidak valid.');
+      return null;
+    }
+
+    // Dapatkan alamat token terkait dengan akun pengirim
+    const senderTokenAddress = await getAssociatedTokenAddress(
+      mintAddress, // Mint address token
+      senderAccount.publicKey // Public key pengirim
     );
 
-    if (!senderTokenAccount || senderTokenAccount.value.length === 0) {
-      console.log("------\nError: Akun pengirim tidak memiliki token SPL yang diperlukan.\n------");
-      return null;
-    }
+    // Dapatkan alamat token penerima
+    const recipientTokenAddress = await getAssociatedTokenAddress(
+      mintAddress, // Mint address token
+      recipientPublicKey // Public key penerima
+    );
 
-    // Mengambil alamat token pengirim yang sesuai dengan mint address yang ditemukan
-    let senderTokenAddress = null;
-    for (const { account } of senderTokenAccount.value) {
-      if (account && account.data && account.data.parsed) {
-        const tokenMintAddress = account.data.parsed.info.mint;
-        if (tokenMintAddress === mintAddress) {
-          senderTokenAddress = account;
-          break;
-        }
-      }
-    }
-
-    if (!senderTokenAddress) {
-      console.log(`------\nError: Alamat token untuk mint address ${mintAddress} tidak ditemukan pada akun pengirim.\n------`);
-      return null;
-    }
-
-    // Buat transaksi transfer
     const transaction = new Transaction().add(
       createTransferInstruction(
-        senderTokenAddress.pubkey,  // Alamat token pengirim
-        recipientPublicKey,  // Alamat penerima
-        senderAccount.publicKey,  // Public key pengirim
-        amount,  // Jumlah token yang akan dikirim
+        senderTokenAddress, // Alamat token pengirim
+        recipientTokenAddress, // Alamat token penerima
+        senderAccount.publicKey, // Public key pengirim
+        amount, // Jumlah token yang akan dikirim
         []
       )
     );
@@ -118,10 +109,10 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
     // Kirim transaksi
     const signature = await connection.sendTransaction(transaction, [senderAccount]);
     await connection.confirmTransaction(signature);
+    console.log(`Transaksi Token SPL berhasil. Signature: ${signature}`);
     return signature;
   } catch (error) {
-    console.log('------\nSendTransactionError: Gagal mengirim Token SPL\n------');
-    console.log("Error Details: ", error.message);
+    console.log('Error sending SPL Token:', error);
     return null;
   }
 }
@@ -132,22 +123,16 @@ async function getSPLTokens(account) {
   try {
     // Mendapatkan daftar akun token SPL yang terkait dengan akun
     const tokenAccounts = await connection.getParsedTokenAccountsByOwner(account.publicKey, {
-      programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), // Token program ID default untuk SPL
+      programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), // Program ID untuk SPL Token
     });
 
-    if (tokenAccounts && tokenAccounts.value) {
-      for (let { pubkey, account } of tokenAccounts.value) {
-        if (account && account.data && account.data.parsed) {
-          const mintAddress = account.data.parsed.info.mint;  // Mint address adalah Token Address
-          const tokenAmount = account.data.parsed.info.tokenAmount.amount;
-
-          // Menambahkan informasi token ke dalam array tokens
-          tokens.push({ mintAddress, amount: tokenAmount, pubkey });
-        }
-      }
+    for (let { pubkey, account } of tokenAccounts.value) {
+      const mintAddress = account.data.parsed.info.mint;
+      const tokenAmount = account.data.parsed.info.tokenAmount.amount;
+      tokens.push({ mintAddress, amount: tokenAmount, pubkey });
     }
   } catch (error) {
-    console.log("Error mendapatkan daftar token SPL: ", error.message);
+    console.log('Error fetching SPL tokens:', error);
   }
 
   return tokens;
@@ -156,34 +141,45 @@ async function getSPLTokens(account) {
 // Fungsi untuk memproses akun dan mengirimkan SOL + SPL Token
 async function processAccount(senderAccount, recipientPublicKey) {
   const balance = await getBalance(senderAccount);
+  console.log(`Saldo akun ${senderAccount.publicKey.toBase58()}: ${balance / LAMPORTS_PER_SOL} SOL`);
 
   // Menghitung jumlah SOL yang akan dikirim (menyisakan sedikit untuk biaya)
   const feeBufferLamports = 5000;  // Biaya minimum dalam lamports
   const solAmountToSend = balance - feeBufferLamports;
 
   if (solAmountToSend > 0) {
+    console.log(`Mengirim ${solAmountToSend / LAMPORTS_PER_SOL} SOL dari ${senderAccount.publicKey.toBase58()} ke ${recipientPublicKey.toBase58()}`);
     const solResponse = await sendSOL(senderAccount, recipientPublicKey, solAmountToSend);
+    if (solResponse) {
+      console.log(`Transaksi SOL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
+    }
   } else {
+    console.log(`Saldo SOL tidak cukup untuk menutupi biaya transaksi di akun ${senderAccount.publicKey.toBase58()}. Mengirim sisa saldo yang ada...`);
     const solResponse = await sendSOL(senderAccount, recipientPublicKey, balance); // Mengirim saldo yang ada meskipun tidak cukup
+    if (solResponse) {
+      console.log(`Transaksi SOL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
+    }
   }
 
   // Mengirimkan semua token SPL yang ada di akun
   const splTokens = await getSPLTokens(senderAccount);
   if (splTokens.length > 0) {
     for (let { mintAddress, amount } of splTokens) {
-      console.log(`Mengirim ${amount} token SPL dari Mint Address: ${mintAddress}`);
+      console.log(`Mengirim ${amount} token SPL dari ${senderAccount.publicKey.toBase58()} ke ${recipientPublicKey.toBase58()}`);
       const splResponse = await sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount);
+      if (splResponse) {
+        console.log(`Transaksi Token SPL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
+      }
     }
   } else {
-    console.log('------\nTidak ada token SPL yang ditemukan di akun.\n------');
+    console.log(`Tidak ada token SPL yang ditemukan di akun ${senderAccount.publicKey.toBase58()}.`);
   }
 }
 
 // Fungsi untuk menampilkan loading screen dan delay 5 detik
 async function showLoadingScreen() {
-  console.log("------\nPONAKANJIBRIL SEDANG DRAIN...");
-  await sleep(1000);  // Tunggu 1 detik untuk menunjukkan loading screen
-  console.log("------\nLoading selesai.\n------");
+  console.log("PONAKANJIBRIL SEDANG DRAIN...");
+  await sleep(5000);
 }
 
 // Fungsi utama untuk menjalankan bot
@@ -198,6 +194,7 @@ async function startBot() {
   const senderAccounts = privateKeysBase58.map(privateKeyBase58 => {
     const privateKeyBytes = bs58.decode(privateKeyBase58);
     if (privateKeyBytes.length !== 64) {
+      console.log('Ukuran private key tidak valid. Harus 64 byte.');
       return null;
     }
     return Keypair.fromSecretKey(privateKeyBytes);
@@ -207,6 +204,7 @@ async function startBot() {
   try {
     recipientPublicKey = new PublicKey(recipientAddress);
   } catch (error) {
+    console.log('Alamat penerima tidak valid:', recipientAddress);
     return; // Jangan lanjutkan jika alamat penerima tidak valid
   }
 
