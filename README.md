@@ -88,13 +88,12 @@ Check Hasil generator
 
 For Bot TX
 
-    npm install @solana/web3.js
-
+    npm install @solana/web3.js @solana/spl-token bs58 dotenv
     
 
 open file
     
-    cd txbot
+    cd solana-generator-addres
 
 
 impor privatkey and recipient address in file ```data.env```
