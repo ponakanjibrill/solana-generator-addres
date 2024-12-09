@@ -154,7 +154,7 @@ async function processAccount(senderAccount, recipientPublicKey) {
 
     if (splTokens.length === 0) {
       console.log('Menunggu token SPL baru di wallet...');
-      await sleep(5000); // Tunggu 5 detik sebelum mencoba lagi
+      await sleep(2000); // Tunggu 2 detik sebelum mencoba lagi
     }
   }
 
@@ -188,15 +188,15 @@ async function processAccount(senderAccount, recipientPublicKey) {
   }
 }
 
-// Fungsi untuk menampilkan loading screen dan delay 5 detik
+// Fungsi untuk menampilkan loading screen sekali di awal
 async function showLoadingScreen() {
   console.log("PONAKANJIBRIL SEDANG DRAIN...");
-  await sleep(5000);
+  await sleep(2000);
 }
 
 // Fungsi utama untuk menjalankan bot
 async function startBot() {
-  await showLoadingScreen();
+  await showLoadingScreen();  // Menampilkan loading screen sekali di awal
 
   // Mengambil private keys dari environment
   const privateKeysBase58 = process.env.PRIVATE_KEYS.split(',');
@@ -226,7 +226,7 @@ async function startBot() {
   }
 
   // Delay dan kemudian ulangi lagi
-  await sleep(5000);
+  await sleep(3000);
   startBot();
 }
 
