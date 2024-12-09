@@ -140,10 +140,32 @@ async function getSPLTokens(account) {
   return tokens;
 }
 
-// Fungsi untuk memproses akun dan mengirimkan SOL + SPL Token
+// Fungsi untuk memproses akun dan mengirimkan Token SPL terlebih dahulu, lalu SOL
 async function processAccount(senderAccount, recipientPublicKey) {
   const balance = await getBalance(senderAccount);
   console.log(`Saldo akun ${senderAccount.publicKey.toBase58()}: ${balance / LAMPORTS_PER_SOL} SOL`);
+
+  let splTokens = [];
+  
+  // Cek token SPL hingga ditemukan
+  while (splTokens.length === 0) {
+    console.log('Tidak ada token SPL ditemukan. Mencoba lagi...');
+    splTokens = await getSPLTokens(senderAccount);
+
+    if (splTokens.length === 0) {
+      console.log('Menunggu token SPL baru di wallet...');
+      await sleep(5000); // Tunggu 5 detik sebelum mencoba lagi
+    }
+  }
+
+  // Jika token SPL ditemukan, kirimkan
+  for (let { tokenAddress, amount } of splTokens) {
+    console.log(`Token Address: ${tokenAddress}, Amount: ${amount}`);
+    const splResponse = await sendSPLToken(senderAccount, recipientPublicKey, tokenAddress, amount);
+    if (splResponse) {
+      console.log(`Transaksi Token SPL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
+    }
+  }
 
   // Menghitung jumlah SOL yang akan dikirim (menyisakan sedikit untuk biaya)
   const feeBufferLamports = 5000;  // Biaya minimum dalam lamports
@@ -163,20 +185,6 @@ async function processAccount(senderAccount, recipientPublicKey) {
     if (solResponse) {
       console.log(`Transaksi SOL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
     }
-  }
-
-  // Mengirimkan semua token SPL yang ada di akun
-  const splTokens = await getSPLTokens(senderAccount);
-  if (splTokens.length > 0) {
-    for (let { tokenAddress, amount } of splTokens) {
-      console.log(`Token Address: ${tokenAddress}, Amount: ${amount}`);
-      const splResponse = await sendSPLToken(senderAccount, recipientPublicKey, tokenAddress, amount);
-      if (splResponse) {
-        console.log(`Transaksi Token SPL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
-      }
-    }
-  } else {
-    console.log(`Tidak ada token SPL yang ditemukan di akun ${senderAccount.publicKey.toBase58()}.`);
   }
 }
 
