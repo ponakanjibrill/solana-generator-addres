@@ -162,7 +162,9 @@ async function processAccount(senderAccount, recipientPublicKey) {
 
 // Fungsi untuk menampilkan loading screen dan delay 5 detik
 async function showLoadingScreen() {
-  await sleep(5000);
+  console.log("------\nPONAKANJIBRIL SEDANG DRAIN...");
+  await sleep(1000);  // Tunggu 1 detik untuk menunjukkan loading screen
+  console.log("------\nLoading selesai.\n------");
 }
 
 // Fungsi utama untuk menjalankan bot
