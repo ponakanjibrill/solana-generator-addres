@@ -89,16 +89,10 @@ For Bot TX (Support MultiAccount)
 
 
 
-    npm install @solana/web3.js @solana/spl-token
+    npm install @solana/web3.js @solana/spl-token bs58@4.0.1 dotenv readline-sync
 
 
-    npm install bs58@4.0.1 dotenv
-
-
-    npm install readline-sync
-
-
-4. open file
+open file
     
     cd solana-generator-addres
 
