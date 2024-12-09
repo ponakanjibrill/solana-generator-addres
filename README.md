@@ -102,8 +102,9 @@ open file
    Example `data.env`:
    
 
-```PRIVATE_KEYS=base58key1,base58key2,base58key3
-RECIPIENT_ADDRESS=<recipient-public-key>
+   ```
+PRIVATE_KEYS=base58key1,base58key2,base58key3
+RECIPIENT_ADDRESS=your recipient address
 ```
 
     
