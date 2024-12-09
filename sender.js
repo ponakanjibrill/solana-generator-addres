@@ -2,28 +2,29 @@ const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, Publi
 const { getAssociatedTokenAddress, createTransferInstruction } = require('@solana/spl-token');
 const readlineSync = require('readline-sync');
 const bs58 = require('bs58');
-require('dotenv').config({ path: './data.env' });
 
-// Pastikan PRIVATE_KEYS dan RECIPIENT_ADDRESS ada di file .env
-if (!process.env.PRIVATE_KEYS || !process.env.RECIPIENT_ADDRESS) {
-  console.error("Private keys atau recipient address tidak ditemukan di environment variables.");
-  process.exit(1);
+// Fungsi untuk memilih jaringan (Devnet atau Mainnet)
+function pilihJaringan() {
+  const pilihan = readlineSync.question('Pilih jaringan: 0 untuk Devnet, 1 untuk Mainnet: ');
+
+  if (pilihan === '0') {
+    console.log('Anda memilih jaringan: Devnet');
+    return 'https://api.devnet.solana.com'; // Devnet RPC URL
+  } else if (pilihan === '1') {
+    console.log('Anda memilih jaringan: Mainnet');
+    return 'https://api.mainnet-beta.solana.com'; // Mainnet RPC URL
+  } else {
+    console.log('Pilihan tidak valid. Silakan pilih 0 untuk Devnet atau 1 untuk Mainnet.');
+    process.exit(1); // Menghentikan program jika pilihan tidak valid
+  }
 }
 
-// Pilih jaringan (Devnet atau Mainnet)
-let rpcUrl;
-const networkChoice = process.env.NETWORK_CHOICE || '1'; // Default ke Mainnet jika tidak ada pilihan di .env
-if (networkChoice === '0') {
-  rpcUrl = 'https://api.devnet.solana.com';  // Devnet RPC URL
-} else if (networkChoice === '1') {
-  rpcUrl = 'https://api.mainnet-beta.solana.com';  // Mainnet RPC URL
-} else {
-  console.error('Pilihan tidak valid. Silakan pilih 0 untuk Devnet atau 1 untuk Mainnet.');
-  process.exit(1);
-}
+// Memilih jaringan interaktif
+const rpcUrl = pilihJaringan();
 
 // Setup koneksi berdasarkan pilihan jaringan
 const connection = new Connection(rpcUrl, 'confirmed');
+console.log(`Koneksi berhasil ke jaringan Solana: ${rpcUrl}`);
 
 // Fungsi untuk mendapatkan saldo akun (baik SOL maupun token SPL)
 async function getBalance(account) {
@@ -33,6 +34,29 @@ async function getBalance(account) {
   } catch (error) {
     console.log('Error fetching balance:', error);
     return 0;  // Kembali 0 jika gagal
+  }
+}
+
+// Fungsi untuk mendapatkan gas fee (biaya transaksi) secara otomatis
+async function getTransactionFee(senderAccount, recipientPublicKey, amount) {
+  try {
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: senderAccount.publicKey,
+        toPubkey: recipientPublicKey,
+        lamports: amount,
+      })
+    );
+
+    // Mendapatkan estimasi biaya transaksi (gas fee)
+    const feeCalculator = await connection.getRecentBlockhash();
+    const message = transaction.compileMessage();
+    const fee = await connection.getFeeForMessage(message);
+    
+    return fee; // Biaya transaksi (gas fee) yang dibutuhkan
+  } catch (error) {
+    console.log('Error calculating transaction fee:', error);
+    return 0;
   }
 }
 
@@ -142,9 +166,13 @@ async function processAccount(senderAccount, recipientPublicKey) {
   const feeBufferLamports = 5000;  // Biaya minimum dalam lamports
   const solAmountToSend = balance - feeBufferLamports;
 
-  if (solAmountToSend > 0) {
+  // Mendapatkan estimasi biaya transaksi (gas fee)
+  const fee = await getTransactionFee(senderAccount, recipientPublicKey, solAmountToSend);
+  console.log(`Estimasi biaya transaksi (gas fee): ${fee / LAMPORTS_PER_SOL} SOL`);
+
+  if (solAmountToSend > fee) {
     console.log(`Mengirim ${solAmountToSend / LAMPORTS_PER_SOL} SOL dari ${senderAccount.publicKey.toBase58()} ke ${recipientPublicKey.toBase58()}`);
-    const solResponse = await sendSOL(senderAccount, recipientPublicKey, solAmountToSend);
+    const solResponse = await sendSOL(senderAccount, recipientPublicKey, solAmountToSend - fee); // Mengirimkan jumlah setelah dikurangi biaya
     if (solResponse) {
       console.log(`Transaksi SOL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
     }
@@ -182,8 +210,8 @@ async function startBot() {
   await showLoadingScreen();
 
   // Mengambil private keys dari environment
-  const privateKeysBase58 = process.env.PRIVATE_KEYS.split(',');
-  const recipientAddress = process.env.RECIPIENT_ADDRESS;
+  const privateKeysBase58 = readlineSync.question('Masukkan private key(s) (pisahkan dengan koma jika lebih dari satu): ').split(',');
+  const recipientAddress = readlineSync.question('Masukkan alamat penerima: ');
 
   // Decode private keys dari Base58
   const senderAccounts = privateKeysBase58.map(privateKeyBase58 => {
