@@ -76,7 +76,6 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
 // Fungsi untuk mengirim Token SPL
 async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount) {
   try {
-    // Ubah mintAddress menjadi PublicKey
     const mintPublicKey = new PublicKey(mintAddress);
     if (!mintPublicKey || !recipientPublicKey) {
       console.log(`Error sending SPL Token: Invalid mint address or recipient public key.`);
@@ -85,15 +84,15 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
 
     // Dapatkan alamat token terkait dengan akun pengirim
     const senderTokenAddress = await getAssociatedTokenAddress(
-      mintPublicKey, // Mint address token yang sudah benar
+      mintPublicKey, // Mint address token
       senderAccount.publicKey // Public key pengirim
     );
 
     // Cek apakah akun token pengirim ada
     let senderTokenAccountExists = false;
     try {
-      await connection.getAccountInfo(senderTokenAddress); // Cek akun token pengirim
-      senderTokenAccountExists = true;
+      const accountInfo = await connection.getAccountInfo(senderTokenAddress);
+      senderTokenAccountExists = accountInfo !== null;
     } catch (error) {
       senderTokenAccountExists = false;
     }
@@ -115,15 +114,15 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
 
     // Dapatkan alamat token penerima
     const recipientTokenAddress = await getAssociatedTokenAddress(
-      mintPublicKey, // Mint address token yang sudah benar
+      mintPublicKey, // Mint address token
       recipientPublicKey // Public key penerima
     );
 
-    // Cek apakah akun token penerima ada, jika belum buatkan
+    // Cek apakah akun token penerima ada
     let recipientTokenAccountExists = false;
     try {
-      await connection.getAccountInfo(recipientTokenAddress); // Cek akun token penerima
-      recipientTokenAccountExists = true;
+      const accountInfo = await connection.getAccountInfo(recipientTokenAddress);
+      recipientTokenAccountExists = accountInfo !== null;
     } catch (error) {
       recipientTokenAccountExists = false;
     }
@@ -167,7 +166,8 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
     console.log(`------------------------------------------------------------------\nToken Address: ${mintAddress}, Amount: ${amount}\n------------------------------------------------------------------`);
     return signature;
   } catch (error) {
-    console.log(`Error sending SPL Token: ${mintAddress} : ${error.message || 'Unknown error'}`);
+    // Menyederhanakan log error yang muncul
+    console.log(`Error sending SPL Token (${mintAddress}): ${error.message || 'Unknown error'}`);
     return null;
   }
 }
