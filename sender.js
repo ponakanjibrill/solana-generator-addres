@@ -10,6 +10,12 @@ if (!process.env.PRIVATE_KEYS || !process.env.RECIPIENT_ADDRESS) {
 }
 
 // Meminta pengguna memilih jaringan
+console.log("------");
+console.log("Pilih jaringan:");
+console.log("0 - Devnet");
+console.log("1 - Mainnet");
+console.log("------");
+
 const networkChoice = readlineSync.question("Masukkan pilihan (0 atau 1): ");
 
 let rpcUrl;
@@ -18,6 +24,7 @@ if (networkChoice === '0') {
 } else if (networkChoice === '1') {
   rpcUrl = 'https://api.mainnet-beta.solana.com';  // Mainnet RPC URL
 } else {
+  console.log("------\nPilihan tidak valid. Silakan pilih 0 untuk Devnet atau 1 untuk Mainnet.\n------");
   process.exit(1);
 }
 
