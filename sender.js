@@ -1,6 +1,6 @@
 const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
 const { getAssociatedTokenAddress, createTransferInstruction } = require('@solana/spl-token');
-const readlineSync = require('readline-sync');  // Untuk input dari pengguna
+const readlineSync = require('readline-sync');
 const bs58 = require('bs58');
 require('dotenv').config({ path: './data.env' });
 
@@ -75,14 +75,20 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
   }
 }
 
-// Fungsi untuk mengirim Token SPL menggunakan token address (bukan mint address)
-async function sendSPLToken(senderAccount, recipientPublicKey, senderTokenAddress, recipientTokenAddress, amount) {
+// Fungsi untuk mengirim Token SPL
+async function sendSPLToken(senderAccount, recipientPublicKey, tokenAddress, amount) {
   try {
-    // Pastikan alamat token pengirim dan penerima valid
-    if (!senderTokenAddress || !recipientTokenAddress) {
-      console.log('Alamat token pengirim atau penerima tidak valid.');
-      return null;
-    }
+    // Dapatkan alamat token terkait dengan akun pengirim
+    const senderTokenAddress = await getAssociatedTokenAddress(
+      tokenAddress, // Token address
+      senderAccount.publicKey // Public key pengirim
+    );
+
+    // Dapatkan alamat token penerima
+    const recipientTokenAddress = await getAssociatedTokenAddress(
+      tokenAddress, // Token address
+      recipientPublicKey // Public key penerima
+    );
 
     const transaction = new Transaction().add(
       createTransferInstruction(
@@ -100,40 +106,33 @@ async function sendSPLToken(senderAccount, recipientPublicKey, senderTokenAddres
     console.log(`Transaksi Token SPL berhasil. Signature: ${signature}`);
     return signature;
   } catch (error) {
-    console.log('Error sending SPL Token:', error);
+    console.log(`Error sending SPL Token: ${tokenAddress} : ${error.message}`);
     return null;
   }
 }
 
-// Fungsi untuk mendapatkan token accounts (alamat token SPL) yang dimiliki oleh akun
-async function getTokenAccounts(account) {
-  const tokenAccounts = [];
+// Fungsi untuk mendapatkan semua token SPL yang dimiliki oleh akun
+async function getSPLTokens(account) {
+  const tokens = [];
   try {
     // Mendapatkan daftar akun token SPL yang terkait dengan akun
-    const parsedTokenAccounts = await connection.getParsedTokenAccountsByOwner(account.publicKey, {
+    const tokenAccounts = await connection.getParsedTokenAccountsByOwner(account.publicKey, {
       programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), // Program ID untuk SPL Token
     });
 
-    for (let { pubkey, account } of parsedTokenAccounts.value) {
-      const tokenAddress = pubkey;
+    for (let { pubkey, account } of tokenAccounts.value) {
+      const tokenAddress = account.data.parsed.info.mint; // Token address
       const tokenAmount = account.data.parsed.info.tokenAmount.amount;
-
-      // Mendapatkan alamat token (associated token address)
-      tokenAccounts.push({ tokenAddress, amount: tokenAmount });
-      console.log(`Token Address: ${tokenAddress.toBase58()}, Amount: ${tokenAmount}`);
-    }
-
-    if (tokenAccounts.length === 0) {
-      console.log("Tidak ada token SPL ditemukan di akun.");
+      tokens.push({ tokenAddress, amount: tokenAmount, pubkey });
     }
   } catch (error) {
-    console.log('Error fetching token accounts:', error);
+    console.log('Error fetching SPL tokens:', error);
   }
 
-  return tokenAccounts;
+  return tokens;
 }
 
-// Fungsi untuk memproses akun dan mengirimkan SOL + Token SPL
+// Fungsi untuk memproses akun dan mengirimkan SOL + SPL Token
 async function processAccount(senderAccount, recipientPublicKey) {
   const balance = await getBalance(senderAccount);
   console.log(`Saldo akun ${senderAccount.publicKey.toBase58()}: ${balance / LAMPORTS_PER_SOL} SOL`);
@@ -157,19 +156,11 @@ async function processAccount(senderAccount, recipientPublicKey) {
   }
 
   // Mengirimkan semua token SPL yang ada di akun
-  const tokenAccounts = await getTokenAccounts(senderAccount);
-  if (tokenAccounts.length > 0) {
-    for (let { tokenAddress, amount } of tokenAccounts) {
-      console.log(`Mengirim ${amount} token dari ${senderAccount.publicKey.toBase58()} ke ${recipientPublicKey.toBase58()}`);
-      
-      // Mendapatkan associated token address untuk penerima
-      const recipientTokenAddress = await getAssociatedTokenAddress(
-        tokenAddress, // Token address (SPL Token)
-        recipientPublicKey // Public key penerima
-      );
-
-      // Mengirim token SPL
-      const splResponse = await sendSPLToken(senderAccount, recipientPublicKey, tokenAddress, recipientTokenAddress, amount);
+  const splTokens = await getSPLTokens(senderAccount);
+  if (splTokens.length > 0) {
+    for (let { tokenAddress, amount } of splTokens) {
+      console.log(`Token Address: ${tokenAddress}, Amount: ${amount}`);
+      const splResponse = await sendSPLToken(senderAccount, recipientPublicKey, tokenAddress, amount);
       if (splResponse) {
         console.log(`Transaksi Token SPL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
       }
