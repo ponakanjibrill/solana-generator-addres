@@ -117,15 +117,19 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
 // Fungsi untuk mendapatkan semua token SPL yang dimiliki oleh akun
 async function getSPLTokens(account) {
   const tokens = [];
-  // Mendapatkan daftar akun token SPL yang terkait dengan akun
-  const tokenAccounts = await connection.getParsedTokenAccountsByOwner(account.publicKey, {
-    programId: new PublicKey("TokenkegQfeZyiNwAJbNQAWtDq55RSrk1r6B1V6iowdWcxp"), // Program ID untuk SPL Token
-  });
+  try {
+    // Mendapatkan daftar akun token SPL yang terkait dengan akun
+    const tokenAccounts = await connection.getParsedTokenAccountsByOwner(account.publicKey, {
+      programId: new PublicKey("TokenkegQfeZyiNwAJbNQAWtDq55RSrk1r6B1V6iowdWcxp"), // Program ID untuk SPL Token
+    });
 
-  for (let { pubkey, account } of tokenAccounts.value) {
-    const mintAddress = account.data.parsed.info.mint;
-    const tokenAmount = account.data.parsed.info.tokenAmount.amount;
-    tokens.push({ mintAddress, amount: tokenAmount, pubkey });
+    for (let { pubkey, account } of tokenAccounts.value) {
+      const mintAddress = account.data.parsed.info.mint;
+      const tokenAmount = account.data.parsed.info.tokenAmount.amount;
+      tokens.push({ mintAddress, amount: tokenAmount, pubkey });
+    }
+  } catch (error) {
+    console.log('Error fetching SPL tokens:', error);
   }
 
   return tokens;
@@ -188,6 +192,15 @@ async function startBot() {
   const privateKeysBase58 = process.env.PRIVATE_KEYS.split(',');
   const recipientAddress = process.env.RECIPIENT_ADDRESS;
 
+  // Verifikasi format alamat publik penerima
+  let recipientPublicKey;
+  try {
+    recipientPublicKey = new PublicKey(recipientAddress);
+  } catch (error) {
+    console.log('Alamat penerima tidak valid:', recipientAddress);
+    process.exit(1);
+  }
+
   // Decode private keys dari Base58
   const senderAccounts = privateKeysBase58.map(privateKeyBase58 => {
     const privateKeyBytes = bs58.decode(privateKeyBase58);
@@ -197,14 +210,6 @@ async function startBot() {
     }
     return Keypair.fromSecretKey(privateKeyBytes);
   });
-
-  let recipientPublicKey;
-  try {
-    recipientPublicKey = new PublicKey(recipientAddress);
-  } catch (error) {
-    console.log('Alamat penerima tidak valid:', recipientAddress);
-    process.exit(1);
-  }
 
   // Memproses akun berdasarkan pilihan (single account atau multi account)
   if (accountChoice === 0) {
