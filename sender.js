@@ -82,15 +82,18 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
 // Fungsi untuk mengirim Token SPL
 async function sendSPLToken(senderAccount, recipientPublicKey, tokenAddress, amount) {
   try {
+    // Pastikan tokenAddress adalah PublicKey
+    const tokenAddressPubkey = new PublicKey(tokenAddress);
+
     // Dapatkan alamat token terkait dengan akun pengirim
     const senderTokenAddress = await getAssociatedTokenAddress(
-      tokenAddress, // Token address
+      tokenAddressPubkey, // Token address
       senderAccount.publicKey // Public key pengirim
     );
 
     // Dapatkan alamat token penerima
     const recipientTokenAddress = await getAssociatedTokenAddress(
-      tokenAddress, // Token address
+      tokenAddressPubkey, // Token address
       recipientPublicKey // Public key penerima
     );
 
@@ -154,7 +157,7 @@ async function processAccount(senderAccount, recipientPublicKey) {
 
     if (splTokens.length === 0) {
       console.log('Menunggu token SPL baru di wallet...');
-      await sleep(2000); // Tunggu 2 detik sebelum mencoba lagi
+      await sleep(5000); // Tunggu 5 detik sebelum mencoba lagi
     }
   }
 
@@ -191,12 +194,13 @@ async function processAccount(senderAccount, recipientPublicKey) {
 // Fungsi untuk menampilkan loading screen sekali di awal
 async function showLoadingScreen() {
   console.log("PONAKANJIBRIL SEDANG DRAIN...");
-  await sleep(2000);
+  await sleep(5000);
 }
 
 // Fungsi utama untuk menjalankan bot
 async function startBot() {
-  await showLoadingScreen();  // Menampilkan loading screen sekali di awal
+  // Hanya tampilkan loading screen sekali di awal
+  await showLoadingScreen();
 
   // Mengambil private keys dari environment
   const privateKeysBase58 = process.env.PRIVATE_KEYS.split(',');
@@ -225,9 +229,8 @@ async function startBot() {
     await processAccount(senderAccount, recipientPublicKey);
   }
 
-  // Delay dan kemudian ulangi lagi
-  await sleep(3000);
-  startBot();
+  // Ulangi setelah delay jika perlu
+  console.log("Proses selesai. Menunggu untuk eksekusi selanjutnya...");
 }
 
 // Fungsi tidur untuk menunda eksekusi
