@@ -86,23 +86,19 @@ Check Hasil generator
    ```
 
 
-For Bot TX (Support MultiAccount)
+2. For Bot TX (Support MultiAccount)
 
 
-    ```bash
     npm install @solana/web3.js @solana/spl-token
-    ```
 
-    ```bash
+
     npm install bs58@4.0.1 dotenv
-    ```
 
-    ```bash
+
     npm install readline-sync
-    ```
 
 
-open file
+3. open file
     
     cd solana-generator-addres
 
