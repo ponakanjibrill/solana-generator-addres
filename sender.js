@@ -1,7 +1,8 @@
 const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
 const { getAssociatedTokenAddress, createTransferInstruction } = require('@solana/spl-token');
+const readlineSync = require('readline-sync');  // Untuk input dari pengguna
 const bs58 = require('bs58');
-require('dotenv').config({ path: './data.env' }); // Pastikan file .env ada di path yang benar
+require('dotenv').config({ path: './data.env' });
 
 // Pastikan PRIVATE_KEYS dan RECIPIENT_ADDRESS ada di file .env
 if (!process.env.PRIVATE_KEYS || !process.env.RECIPIENT_ADDRESS) {
@@ -9,13 +10,25 @@ if (!process.env.PRIVATE_KEYS || !process.env.RECIPIENT_ADDRESS) {
   process.exit(1);
 }
 
-// Tentukan jaringan secara langsung dalam script (Devnet atau Mainnet)
-const rpcUrl = 'https://api.mainnet-beta.solana.com'; // Ubah sesuai kebutuhan, 'https://api.devnet.solana.com' untuk Devnet
-// const rpcUrl = 'https://api.devnet.solana.com'; // Pilihan untuk Devnet
+// Meminta pengguna memilih jaringan
+console.log("Pilih jaringan:");
+console.log("0. Devnet");
+console.log("1. Mainnet");
+
+const networkChoice = readlineSync.question("Masukkan pilihan (0 atau 1): ");
+
+let rpcUrl;
+if (networkChoice === '0') {
+  rpcUrl = 'https://api.devnet.solana.com';  // Devnet RPC URL
+} else if (networkChoice === '1') {
+  rpcUrl = 'https://api.mainnet-beta.solana.com';  // Mainnet RPC URL
+} else {
+  console.error('Pilihan tidak valid. Silakan pilih 0 untuk Devnet atau 1 untuk Mainnet.');
+  process.exit(1);
+}
 
 // Setup koneksi berdasarkan pilihan jaringan
 const connection = new Connection(rpcUrl, 'confirmed');
-console.log(`Koneksi berhasil ke jaringan Solana: ${rpcUrl}`);
 
 // Fungsi untuk mendapatkan saldo akun (baik SOL maupun token SPL)
 async function getBalance(account) {
@@ -25,29 +38,6 @@ async function getBalance(account) {
   } catch (error) {
     console.log('Error fetching balance:', error);
     return 0;  // Kembali 0 jika gagal
-  }
-}
-
-// Fungsi untuk mendapatkan gas fee (biaya transaksi) secara otomatis
-async function getTransactionFee(senderAccount, recipientPublicKey, amount) {
-  try {
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: senderAccount.publicKey,
-        toPubkey: recipientPublicKey,
-        lamports: amount,
-      })
-    );
-
-    // Mendapatkan estimasi biaya transaksi (gas fee)
-    const feeCalculator = await connection.getRecentBlockhash();
-    const message = transaction.compileMessage();
-    const fee = await connection.getFeeForMessage(message);
-    
-    return fee; // Biaya transaksi (gas fee) yang dibutuhkan
-  } catch (error) {
-    console.log('Error calculating transaction fee:', error);
-    return 0;
   }
 }
 
@@ -175,7 +165,7 @@ async function processAccount(senderAccount, recipientPublicKey) {
   const splTokens = await getSPLTokens(senderAccount);
   if (splTokens.length > 0) {
     for (let { mintAddress, amount } of splTokens) {
-      console.log(`Mengirim ${amount} token SPL (Mint: ${mintAddress}) dari ${senderAccount.publicKey.toBase58()} ke ${recipientPublicKey.toBase58()}`);
+      console.log(`Mengirim ${amount} token SPL dari ${senderAccount.publicKey.toBase58()} ke ${recipientPublicKey.toBase58()}`);
       const splResponse = await sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount);
       if (splResponse) {
         console.log(`Transaksi Token SPL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
