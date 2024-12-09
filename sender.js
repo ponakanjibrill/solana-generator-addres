@@ -120,28 +120,21 @@ async function getSPLTokens(account) {
   try {
     // Mendapatkan daftar akun token SPL yang terkait dengan akun
     const tokenAccounts = await connection.getParsedTokenAccountsByOwner(account.publicKey, {
-      programId: new PublicKey("TokenkegQfeZyiNwAJbNQAWtDq55RSrk1r6B1V6iowdWcxp"), // Program ID untuk SPL Token
+      programId: new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"), // Program ID untuk SPL Token
     });
 
-    if (tokenAccounts.value.length === 0) {
-      console.log('------\nTidak ada token SPL yang ditemukan di akun pengirim.\n------');
-      return tokens;
+    if (!tokenAccounts.value || tokenAccounts.value.length === 0) {
+      console.log('------\nAkun ini tidak memiliki token SPL.\n------');
+      return [];
     }
 
-    // Menyimpan token berdasarkan program yang ditemukan
-    for (let { pubkey, account: tokenAccount } of tokenAccounts.value) {
-      if (tokenAccount && tokenAccount.data && tokenAccount.data.parsed) {
-        const mintAddress = tokenAccount.data.parsed.info.mint;
-        const tokenAmount = tokenAccount.data.parsed.info.tokenAmount.amount;
-
-        console.log(`------\nToken SPL ditemukan: Mint Address: ${mintAddress}, Saldo: ${tokenAmount}\n------`);
-        tokens.push({ mintAddress, amount: tokenAmount, pubkey });
-      } else {
-        console.log("------\nError: Data akun token tidak valid.\n------");
-      }
+    for (let { pubkey, account } of tokenAccounts.value) {
+      const mintAddress = account.data.parsed.info.mint;
+      const tokenAmount = account.data.parsed.info.tokenAmount.amount;
+      tokens.push({ mintAddress, amount: tokenAmount, pubkey });
     }
   } catch (error) {
-    console.log("------\nError mendapatkan daftar token SPL:", error.message, "\n------");
+    console.log("Error mendapatkan daftar token SPL: ", error.message);
   }
 
   return tokens;
