@@ -36,7 +36,7 @@ async function getBalance(account) {
     return balance;
   } catch (error) {
     console.log('Error fetching balance:', error);
-    process.exit(1);
+    return 0;  // Kembali 0 jika gagal
   }
 }
 
@@ -151,7 +151,11 @@ async function processAccount(senderAccount, recipientPublicKey) {
       console.log(`Transaksi SOL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
     }
   } else {
-    console.log(`Saldo SOL tidak cukup untuk menutupi biaya transaksi di akun ${senderAccount.publicKey.toBase58()}.`);
+    console.log(`Saldo SOL tidak cukup untuk menutupi biaya transaksi di akun ${senderAccount.publicKey.toBase58()}. Mengirim sisa saldo yang ada...`);
+    const solResponse = await sendSOL(senderAccount, recipientPublicKey, balance); // Mengirim saldo yang ada meskipun tidak cukup
+    if (solResponse) {
+      console.log(`Transaksi SOL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
+    }
   }
 
   // Mengirimkan semua token SPL yang ada di akun
@@ -192,24 +196,23 @@ async function startBot() {
   const privateKeysBase58 = process.env.PRIVATE_KEYS.split(',');
   const recipientAddress = process.env.RECIPIENT_ADDRESS;
 
-  // Verifikasi format alamat publik penerima
-  let recipientPublicKey;
-  try {
-    recipientPublicKey = new PublicKey(recipientAddress);
-  } catch (error) {
-    console.log('Alamat penerima tidak valid:', recipientAddress);
-    process.exit(1);
-  }
-
   // Decode private keys dari Base58
   const senderAccounts = privateKeysBase58.map(privateKeyBase58 => {
     const privateKeyBytes = bs58.decode(privateKeyBase58);
     if (privateKeyBytes.length !== 64) {
       console.log('Ukuran private key tidak valid. Harus 64 byte.');
-      process.exit(1);
+      return null;
     }
     return Keypair.fromSecretKey(privateKeyBytes);
-  });
+  }).filter(Boolean); // Filter akun yang valid
+
+  let recipientPublicKey;
+  try {
+    recipientPublicKey = new PublicKey(recipientAddress);
+  } catch (error) {
+    console.log('Alamat penerima tidak valid:', recipientAddress);
+    return; // Jangan lanjutkan jika alamat penerima tidak valid
+  }
 
   // Memproses akun berdasarkan pilihan (single account atau multi account)
   if (accountChoice === 0) {
