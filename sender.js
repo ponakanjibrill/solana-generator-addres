@@ -1,6 +1,6 @@
 const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
 const { getAssociatedTokenAddress, createTransferInstruction } = require('@solana/spl-token');
-const readlineSync = require('readline-sync');
+const readlineSync = require('readline-sync');  // Untuk input dari pengguna
 const bs58 = require('bs58');
 require('dotenv').config({ path: './data.env' });
 
@@ -67,33 +67,32 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
     // Kirim transaksi
     const signature = await connection.sendTransaction(transaction, [senderAccount]);
     await connection.confirmTransaction(signature);
-    console.log(`------------------------------------------------------------------`);
-    console.log(`Token Address: SOL, Amount: ${amount / LAMPORTS_PER_SOL}`);
-    console.log(`------------------------------------------------------------------`);
+    console.log(`Transaksi SOL berhasil. Signature: ${signature}`);
     return signature;
   } catch (error) {
-    console.log(`------------------------------------------------------------------`);
-    console.log(`Error sending SOL: ${senderAccount.publicKey.toBase58()} : ${error.message}`);
-    console.log(`------------------------------------------------------------------`);
+    console.log('Error sending SOL:', error);
     return null;
   }
 }
 
 // Fungsi untuk mengirim Token SPL
-async function sendSPLToken(senderAccount, recipientPublicKey, tokenAddress, amount) {
+async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount) {
   try {
-    // Pastikan tokenAddress adalah PublicKey
-    const tokenAddressPubkey = new PublicKey(tokenAddress);
+    // Validasi mint address dan public key
+    if (!mintAddress || !recipientPublicKey) {
+      console.log('Mint address atau recipient public key tidak valid.');
+      return null;
+    }
 
     // Dapatkan alamat token terkait dengan akun pengirim
     const senderTokenAddress = await getAssociatedTokenAddress(
-      tokenAddressPubkey, // Token address
+      mintAddress, // Mint address token
       senderAccount.publicKey // Public key pengirim
     );
 
     // Dapatkan alamat token penerima
     const recipientTokenAddress = await getAssociatedTokenAddress(
-      tokenAddressPubkey, // Token address
+      mintAddress, // Mint address token
       recipientPublicKey // Public key penerima
     );
 
@@ -110,14 +109,10 @@ async function sendSPLToken(senderAccount, recipientPublicKey, tokenAddress, amo
     // Kirim transaksi
     const signature = await connection.sendTransaction(transaction, [senderAccount]);
     await connection.confirmTransaction(signature);
-    console.log(`------------------------------------------------------------------`);
-    console.log(`Token Address: ${tokenAddress}, Amount: ${amount}`);
-    console.log(`------------------------------------------------------------------`);
+    console.log(`Transaksi Token SPL berhasil. Signature: ${signature}`);
     return signature;
   } catch (error) {
-    console.log(`------------------------------------------------------------------`);
-    console.log(`Error sending SPL Token: ${tokenAddress} : ${error.message}`);
-    console.log(`------------------------------------------------------------------`);
+    console.log('Error sending SPL Token:', error);
     return null;
   }
 }
@@ -132,9 +127,9 @@ async function getSPLTokens(account) {
     });
 
     for (let { pubkey, account } of tokenAccounts.value) {
-      const tokenAddress = account.data.parsed.info.mint; // Token address
+      const mintAddress = account.data.parsed.info.mint;
       const tokenAmount = account.data.parsed.info.tokenAmount.amount;
-      tokens.push({ tokenAddress, amount: tokenAmount, pubkey });
+      tokens.push({ mintAddress, amount: tokenAmount, pubkey });
     }
   } catch (error) {
     console.log('Error fetching SPL tokens:', error);
@@ -143,51 +138,32 @@ async function getSPLTokens(account) {
   return tokens;
 }
 
-// Fungsi untuk memproses akun dan mengirimkan Token SPL terlebih dahulu, lalu SOL
+// Fungsi untuk memproses akun dan mengirimkan SOL + SPL Token
 async function processAccount(senderAccount, recipientPublicKey) {
   const balance = await getBalance(senderAccount);
   console.log(`Saldo akun ${senderAccount.publicKey.toBase58()}: ${balance / LAMPORTS_PER_SOL} SOL`);
 
-  let splTokens = [];
-  
-  // Cek token SPL hingga ditemukan
-  while (splTokens.length === 0) {
-    console.log('Tidak ada token SPL ditemukan. Mencoba lagi...');
-    splTokens = await getSPLTokens(senderAccount);
-
-    if (splTokens.length === 0) {
-      console.log('Menunggu token SPL baru di wallet...');
-      await sleep(2000); // Tunggu 5 detik sebelum mencoba lagi
-    }
-  }
-
-  // Jika token SPL ditemukan, kirimkan
-  for (let { tokenAddress, amount } of splTokens) {
-    console.log(`Token Address: ${tokenAddress}, Amount: ${amount}`);
-    const splResponse = await sendSPLToken(senderAccount, recipientPublicKey, tokenAddress, amount);
-    if (splResponse) {
-      console.log(`Transaksi Token SPL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
-    }
-  }
-
-  // Setelah mengirimkan SPL Token, kirim SOL
+  // Menghitung jumlah SOL yang akan dikirim (menyisakan sedikit untuk biaya)
   const feeBufferLamports = 5000;  // Biaya minimum dalam lamports
   const solAmountToSend = balance - feeBufferLamports;
 
-  if (solAmountToSend > 0) {
-    console.log(`------------------------------------------------------------------`);
-    console.log(`Token Address: SOL, Amount: ${solAmountToSend / LAMPORTS_PER_SOL}`);
-    console.log(`------------------------------------------------------------------`);
-    const solResponse = await sendSOL(senderAccount, recipientPublicKey, solAmountToSend);
-    if (solResponse) {
-      console.log(`Transaksi SOL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
+  // Mengirimkan semua token SPL yang ada di akun
+  const splTokens = await getSPLTokens(senderAccount);
+  if (splTokens.length > 0) {
+    for (let { mintAddress, amount } of splTokens) {
+      console.log(`Token Address: ${mintAddress}, Amount: ${amount}`);
+      await sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount);
     }
   } else {
-    console.log(`Saldo SOL tidak cukup untuk menutupi biaya transaksi di akun ${senderAccount.publicKey.toBase58()}. Mengirim sisa saldo yang ada...`);
-    const solResponse = await sendSOL(senderAccount, recipientPublicKey, balance); // Mengirim saldo yang ada meskipun tidak cukup
-    if (solResponse) {
-      console.log(`Transaksi SOL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
-    }
+    console.log('Tidak ada token SPL ditemukan.');
+  }
+
+  // Jika ada SOL yang dapat dikirim, kirimkan setelah token SPL
+  if (solAmountToSend > 0) {
+    console.log(`Mengirim ${solAmountToSend / LAMPORTS_PER_SOL} SOL dari ${senderAccount.publicKey.toBase58()} ke ${recipientPublicKey.toBase58()}`);
+    await sendSOL(senderAccount, recipientPublicKey, solAmountToSend);
+  } else {
+    console.log(`Saldo SOL tidak cukup untuk menutupi biaya transaksi di akun ${senderAccount.publicKey.toBase58()}.`);
   }
 }
 
@@ -215,14 +191,24 @@ async function startBot() {
     return; // Jangan lanjutkan jika alamat penerima tidak valid
   }
 
-  // Memproses akun berdasarkan pilihan (single account atau multi account)
-  for (let senderAccount of senderAccounts) {
-    await processAccount(senderAccount, recipientPublicKey);
-  }
+  // Fungsi untuk memeriksa token SPL baru di akun dan mengirimkan jika ada
+  const checkTokensAndSend = async () => {
+    for (let senderAccount of senderAccounts) {
+      const splTokens = await getSPLTokens(senderAccount);
+      if (splTokens.length > 0) {
+        for (let { mintAddress, amount } of splTokens) {
+          console.log(`Token Address: ${mintAddress}, Amount: ${amount}`);
+          await sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount);
+        }
+      }
+    }
+  };
 
-  // Delay dan kemudian ulangi lagi
-  await sleep(2000);
-  startBot();
+  // Cek token SPL setiap 2 detik dan kirim jika ada
+  while (true) {
+    await checkTokensAndSend();
+    await sleep(2000);  // Delay 2 detik sebelum pengecekan ulang
+  }
 }
 
 // Fungsi tidur untuk menunda eksekusi
