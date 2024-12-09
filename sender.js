@@ -1,8 +1,8 @@
 const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
-const { getAssociatedTokenAddress, createTransferInstruction, Token } = require('@solana/spl-token');
+const { getAssociatedTokenAddress, createTransferInstruction } = require('@solana/spl-token');
 const readlineSync = require('readline-sync');
 const bs58 = require('bs58');
-require('dotenv').config({ path: './data.env' }); // Membaca dari data.env
+require('dotenv').config({ path: './data.env' });
 
 // Pastikan PRIVATE_KEYS dan RECIPIENT_ADDRESS ada di file .env
 if (!process.env.PRIVATE_KEYS || !process.env.RECIPIENT_ADDRESS) {
@@ -47,15 +47,19 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
       })
     );
 
-    // Menghitung biaya transaksi dinamis jika diperlukan
-    const { feeCalculator } = await connection.getRecentBlockhash();
-    const transactionFee = feeCalculator.lamportsPerSignature;
-    const transactionFeeBuffer = transactionFee * transaction.signatures.length;
+    // Cek apakah perlu mendapatkan blockhash
+    let recentBlockhash;
+    try {
+      recentBlockhash = await connection.getRecentBlockhash();
+    } catch (error) {
+      console.log('Gagal mendapatkan recent blockhash, melanjutkan transaksi tanpa blockhash');
+      recentBlockhash = { blockhash: '' }; // Menggunakan blockhash kosong
+    }
 
-    // Menambahkan biaya transaksi dinamis sebagai penyangga
-    const totalAmount = amount - transactionFeeBuffer;
+    transaction.recentBlockhash = recentBlockhash.blockhash;
+    transaction.feePayer = senderAccount.publicKey;
 
-    // Mengirim transaksi
+    // Kirim transaksi
     const signature = await connection.sendTransaction(transaction, [senderAccount]);
     await connection.confirmTransaction(signature);
     console.log(`Transaksi SOL berhasil. Signature: ${signature}`);
@@ -69,6 +73,12 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
 // Fungsi untuk mengirim Token SPL
 async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount) {
   try {
+    // Validasi mint address dan public key
+    if (!mintAddress || !recipientPublicKey) {
+      console.log('Mint address atau recipient public key tidak valid.');
+      return null;
+    }
+
     // Dapatkan alamat token terkait dengan akun pengirim
     const senderTokenAddress = await getAssociatedTokenAddress(
       mintAddress, // Mint address token
@@ -91,15 +101,7 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
       )
     );
 
-    // Menghitung biaya transaksi dinamis jika diperlukan
-    const { feeCalculator } = await connection.getRecentBlockhash();
-    const transactionFee = feeCalculator.lamportsPerSignature;
-    const transactionFeeBuffer = transactionFee * transaction.signatures.length;
-
-    // Menambahkan biaya transaksi dinamis sebagai penyangga
-    const totalAmount = amount - transactionFeeBuffer;
-
-    // Mengirim transaksi
+    // Kirim transaksi
     const signature = await connection.sendTransaction(transaction, [senderAccount]);
     await connection.confirmTransaction(signature);
     console.log(`Transaksi Token SPL berhasil. Signature: ${signature}`);
@@ -172,14 +174,11 @@ async function processAccount(senderAccount, recipientPublicKey) {
 // Fungsi untuk menampilkan loading screen dan delay 5 detik
 async function showLoadingScreen() {
   console.log("PONAKANJIBRIL SEDANG DRAIN...");
-
-  // Menunggu 5 detik sebelum melanjutkan ke proses utama
   await sleep(5000);
 }
 
 // Fungsi utama untuk menjalankan bot
 async function startBot() {
-  // Menampilkan loading screen sebelum memulai proses
   await showLoadingScreen();
 
   // Mengambil private keys dari environment
