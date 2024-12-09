@@ -137,12 +137,15 @@ async function getSPLTokens(account) {
 
         // Pastikan `owner` ada dan valid sebelum akses `toBase58`
         const owner = tokenAccount.owner ? tokenAccount.owner : null;
-        const programId = owner ? owner.toBase58() : 'Unknown';  // Periksa keberadaan `owner`
 
-        // Log untuk memastikan bahwa `owner` tersedia
-        console.log(`------\nToken SPL ditemukan: Mint Address: ${mintAddress}, Saldo: ${tokenAmount}, Program ID: ${programId}\n------`);
-        
-        tokens.push({ mintAddress, amount: tokenAmount, pubkey, programId });
+        // Cek jika `owner` valid dan dapat diakses
+        if (owner) {
+          const programId = owner.toBase58();  // Jika owner valid, akses toBase58
+          console.log(`------\nToken SPL ditemukan: Mint Address: ${mintAddress}, Saldo: ${tokenAmount}, Program ID: ${programId}\n------`);
+          tokens.push({ mintAddress, amount: tokenAmount, pubkey, programId });
+        } else {
+          console.log('------\nWarning: Token tidak memiliki owner yang valid.\n------');
+        }
       } else {
         console.log("------\nError: Data akun token tidak valid.\n------");
       }
