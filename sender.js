@@ -11,15 +11,11 @@ if (!process.env.PRIVATE_KEYS || !process.env.RECIPIENT_ADDRESS) {
 }
 
 // Pilih jaringan (Devnet atau Mainnet)
-console.log("Pilih jaringan:");
-console.log("0. Devnet");
-console.log("1. Mainnet");
-const networkChoice = readlineSync.questionInt("Masukkan pilihan (0 atau 1): ");
-
 let rpcUrl;
-if (networkChoice === 0) {
+const networkChoice = process.env.NETWORK_CHOICE || '1'; // Default ke Mainnet jika tidak ada pilihan di .env
+if (networkChoice === '0') {
   rpcUrl = 'https://api.devnet.solana.com';  // Devnet RPC URL
-} else if (networkChoice === 1) {
+} else if (networkChoice === '1') {
   rpcUrl = 'https://api.mainnet-beta.solana.com';  // Mainnet RPC URL
 } else {
   console.error('Pilihan tidak valid. Silakan pilih 0 untuk Devnet atau 1 untuk Mainnet.');
@@ -51,7 +47,7 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
       })
     );
 
-    // Menghitung biaya transaksi dinamis
+    // Menghitung biaya transaksi dinamis jika diperlukan
     const { feeCalculator } = await connection.getRecentBlockhash();
     const transactionFee = feeCalculator.lamportsPerSignature;
     const transactionFeeBuffer = transactionFee * transaction.signatures.length;
@@ -95,7 +91,7 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
       )
     );
 
-    // Menghitung biaya transaksi dinamis
+    // Menghitung biaya transaksi dinamis jika diperlukan
     const { feeCalculator } = await connection.getRecentBlockhash();
     const transactionFee = feeCalculator.lamportsPerSignature;
     const transactionFeeBuffer = transactionFee * transaction.signatures.length;
@@ -183,12 +179,6 @@ async function showLoadingScreen() {
 
 // Fungsi utama untuk menjalankan bot
 async function startBot() {
-  // Menampilkan pilihan akun
-  console.log("Pilih jenis akun:");
-  console.log("0. Single Account");
-  console.log("1. Multi Account");
-  const accountChoice = readlineSync.questionInt("Masukkan pilihan (0 atau 1): ");
-
   // Menampilkan loading screen sebelum memulai proses
   await showLoadingScreen();
 
@@ -215,19 +205,13 @@ async function startBot() {
   }
 
   // Memproses akun berdasarkan pilihan (single account atau multi account)
-  if (accountChoice === 0) {
-    // Single Account: Hanya menggunakan akun pertama
-    await processAccount(senderAccounts[0], recipientPublicKey);
-  } else if (accountChoice === 1) {
-    // Multi Account: Menggunakan semua akun yang ada
-    for (let senderAccount of senderAccounts) {
-      await processAccount(senderAccount, recipientPublicKey);
-    }
+  for (let senderAccount of senderAccounts) {
+    await processAccount(senderAccount, recipientPublicKey);
   }
 
   // Delay dan kemudian ulangi lagi
   await sleep(5000);
-  await startBot();
+  startBot();
 }
 
 // Fungsi tidur untuk menunda eksekusi
