@@ -89,6 +89,7 @@ Check Hasil generator
 2. For Bot TX (Support MultiAccount)
 
 
+
     npm install @solana/web3.js @solana/spl-token
 
 
@@ -98,7 +99,7 @@ Check Hasil generator
     npm install readline-sync
 
 
-3. open file
+4. open file
     
     cd solana-generator-addres
 
