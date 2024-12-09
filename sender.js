@@ -36,7 +36,6 @@ async function getBalance(account) {
     const balance = await connection.getBalance(account.publicKey);
     return balance;
   } catch (error) {
-    console.log('Error fetching balance:', error);
     return 0;  // Kembali 0 jika gagal
   }
 }
@@ -57,7 +56,6 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
     try {
       recentBlockhash = await connection.getRecentBlockhash();
     } catch (error) {
-      console.log('Gagal mendapatkan recent blockhash, melanjutkan transaksi tanpa blockhash');
       recentBlockhash = { blockhash: '' }; // Menggunakan blockhash kosong
     }
 
@@ -67,10 +65,10 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
     // Kirim transaksi
     const signature = await connection.sendTransaction(transaction, [senderAccount]);
     await connection.confirmTransaction(signature);
-    console.log(`Transaksi SOL berhasil. Signature: ${signature}`);
+    console.log(`------------------------------------------------------------------\nToken Address: ${recipientPublicKey.toBase58()}, Amount: ${amount / LAMPORTS_PER_SOL} SOL\n------------------------------------------------------------------`);
     return signature;
   } catch (error) {
-    console.log('Error sending SOL:', error);
+    console.log(`Error sending SOL: ${senderAccount.publicKey.toBase58()} : ${error.message}`);
     return null;
   }
 }
@@ -80,7 +78,7 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
   try {
     // Validasi mint address dan public key
     if (!mintAddress || !recipientPublicKey) {
-      console.log('Mint address atau recipient public key tidak valid.');
+      console.log(`Error sending SPL Token: Invalid mint address or recipient public key.`);
       return null;
     }
 
@@ -109,10 +107,10 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
     // Kirim transaksi
     const signature = await connection.sendTransaction(transaction, [senderAccount]);
     await connection.confirmTransaction(signature);
-    console.log(`Transaksi Token SPL berhasil. Signature: ${signature}`);
+    console.log(`------------------------------------------------------------------\nToken Address: ${mintAddress}, Amount: ${amount}\n------------------------------------------------------------------`);
     return signature;
   } catch (error) {
-    console.log('Error sending SPL Token:', error);
+    console.log(`Error sending SPL Token: ${mintAddress} : ${error.message}`);
     return null;
   }
 }
@@ -139,9 +137,9 @@ async function getSPLTokens(account) {
 }
 
 // Fungsi untuk memproses akun dan mengirimkan SOL + SPL Token
-async function processAccount(senderAccount, recipientPublicKey) {
+async function processAccount(senderAccount, recipientPublicKey, accountLabel) {
   const balance = await getBalance(senderAccount);
-  console.log(`Saldo akun ${senderAccount.publicKey.toBase58()}: ${balance / LAMPORTS_PER_SOL} SOL`);
+  console.log(`Akun: ${accountLabel} - Saldo: ${balance / LAMPORTS_PER_SOL} SOL`);
 
   // Menghitung jumlah SOL yang akan dikirim (menyisakan sedikit untuk biaya)
   const feeBufferLamports = 5000;  // Biaya minimum dalam lamports
@@ -151,19 +149,19 @@ async function processAccount(senderAccount, recipientPublicKey) {
   const splTokens = await getSPLTokens(senderAccount);
   if (splTokens.length > 0) {
     for (let { mintAddress, amount } of splTokens) {
-      console.log(`Token Address: ${mintAddress}, Amount: ${amount}`);
+      console.log(`------------------------------------------------------------------\nToken Address: ${mintAddress}, Amount: ${amount}\n------------------------------------------------------------------`);
       await sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount);
     }
   } else {
-    console.log('Tidak ada token SPL ditemukan.');
+    console.log(`Tidak ada token SPL ditemukan di akun ${accountLabel}.`);
   }
 
   // Jika ada SOL yang dapat dikirim, kirimkan setelah token SPL
   if (solAmountToSend > 0) {
-    console.log(`Mengirim ${solAmountToSend / LAMPORTS_PER_SOL} SOL dari ${senderAccount.publicKey.toBase58()} ke ${recipientPublicKey.toBase58()}`);
+    console.log(`------------------------------------------------------------------\nMengirim ${solAmountToSend / LAMPORTS_PER_SOL} SOL dari ${accountLabel} (${senderAccount.publicKey.toBase58()}) ke ${recipientPublicKey.toBase58()}\n------------------------------------------------------------------`);
     await sendSOL(senderAccount, recipientPublicKey, solAmountToSend);
   } else {
-    console.log(`Saldo SOL tidak cukup untuk menutupi biaya transaksi di akun ${senderAccount.publicKey.toBase58()}.`);
+    console.log(`Saldo SOL tidak cukup untuk menutupi biaya transaksi di akun ${accountLabel}.`);
   }
 }
 
@@ -191,24 +189,17 @@ async function startBot() {
     return; // Jangan lanjutkan jika alamat penerima tidak valid
   }
 
-  // Fungsi untuk memeriksa token SPL baru di akun dan mengirimkan jika ada
-  const checkTokensAndSend = async () => {
-    for (let senderAccount of senderAccounts) {
-      const splTokens = await getSPLTokens(senderAccount);
-      if (splTokens.length > 0) {
-        for (let { mintAddress, amount } of splTokens) {
-          console.log(`Token Address: ${mintAddress}, Amount: ${amount}`);
-          await sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount);
-        }
-      }
-    }
-  };
-
-  // Cek token SPL setiap 2 detik dan kirim jika ada
-  while (true) {
-    await checkTokensAndSend();
-    await sleep(2000);  // Delay 2 detik sebelum pengecekan ulang
+  // Proses akun berdasarkan apakah itu single atau multi akun
+  for (let i = 0; i < senderAccounts.length; i++) {
+    const senderAccount = senderAccounts[i];
+    const accountLabel = `Akun ${i + 1}`;
+    console.log(`------------------------------------------------------------------\nProses untuk ${accountLabel}`);
+    await processAccount(senderAccount, recipientPublicKey, accountLabel);
   }
+
+  // Delay dan kemudian ulangi lagi
+  await sleep(5000);
+  startBot();
 }
 
 // Fungsi tidur untuk menunda eksekusi
