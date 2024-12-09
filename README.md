@@ -97,7 +97,12 @@ open file
     cd solana-generator-addres
 
 
-impor privatkey and recipient address in file ```data.env```
+   - impor privatkey and recipient address in file ```data.env```
+
+   Example `data.env`:
+      ```PRIVATE_KEYS=base58key1,base58key2,base58key3
+RECIPIENT_ADDRESS=your recipient addres
+   ```
 
     node sender.js
 
