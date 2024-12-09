@@ -1,5 +1,6 @@
 require('dotenv').config({ path: './data.env' }); // Automatically load from data.env
 
+const readlineSync = require('readline-sync'); // Import readline-sync for user input
 const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
 const bs58 = require('bs58'); // Ensure bs58 is properly imported
 const { Token, TOKEN_PROGRAM_ID } = require('@solana/spl-token'); // Import SPL Token library
@@ -26,8 +27,25 @@ if (privateKeyBytes.length !== 64) {
 // Create Keypair from the raw private key
 const senderAccount = Keypair.fromSecretKey(privateKeyBytes);
 
-// Set up Solana connection (use "devnet" for testing, "mainnet-beta" for production)
-const connection = new Connection("https://api.devnet.solana.com", 'confirmed');
+// Prompt user for the network (Devnet or Mainnet)
+const networkChoice = readlineSync.question('Select the network (0 for Devnet, 1 for Mainnet): ');
+
+let rpcUrl;
+if (networkChoice === '0') {
+  // Devnet RPC URL
+  rpcUrl = "https://api.devnet.solana.com";
+  console.log("Selected Devnet.");
+} else if (networkChoice === '1') {
+  // Mainnet RPC URL
+  rpcUrl = "https://api.mainnet-beta.solana.com";
+  console.log("Selected Mainnet.");
+} else {
+  console.log('Invalid selection. Exiting...');
+  process.exit(1);
+}
+
+// Set up Solana connection
+const connection = new Connection(rpcUrl, 'confirmed');
 
 // Convert recipient address to PublicKey
 let recipientPublicKey;
