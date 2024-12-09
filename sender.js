@@ -1,6 +1,7 @@
 require('dotenv').config({ path: './data.env' }); // Automatically load from data.env
+
 const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
-const bs58 = require('bs58'); // Import the bs58 library
+const bs58 = require('bs58'); // Ensure bs58 is properly imported
 
 // Read the private key from the .env file as a Base58 string
 const privateKeyBase58 = process.env.PRIVATE_KEY;
