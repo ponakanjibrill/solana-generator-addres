@@ -76,21 +76,22 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
 // Fungsi untuk mengirim Token SPL
 async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount) {
   try {
-    // Validasi mint address dan public key
-    if (!mintAddress || !recipientPublicKey) {
+    // Ubah mintAddress menjadi PublicKey, pastikan itu bukan string
+    const mintPublicKey = new PublicKey(mintAddress);  // Mengonversi mintAddress ke PublicKey
+    if (!mintPublicKey || !recipientPublicKey) {
       console.log(`Error sending SPL Token: Invalid mint address or recipient public key.`);
       return null;
     }
 
     // Dapatkan alamat token terkait dengan akun pengirim
     const senderTokenAddress = await getAssociatedTokenAddress(
-      mintAddress, // Mint address token
+      mintPublicKey, // Mint address token yang sudah benar
       senderAccount.publicKey // Public key pengirim
     );
 
     // Dapatkan alamat token penerima
     const recipientTokenAddress = await getAssociatedTokenAddress(
-      mintAddress, // Mint address token
+      mintPublicKey, // Mint address token yang sudah benar
       recipientPublicKey // Public key penerima
     );
 
