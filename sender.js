@@ -167,7 +167,7 @@ async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amou
     console.log(`------------------------------------------------------------------\nToken Address: ${mintAddress}, Amount: ${amount}\n------------------------------------------------------------------`);
     return signature;
   } catch (error) {
-    console.log(`Error sending SPL Token: ${mintAddress} : ${error.message}`);
+    console.log(`Error sending SPL Token: ${mintAddress} : ${error.message || 'Unknown error'}`);
     return null;
   }
 }
