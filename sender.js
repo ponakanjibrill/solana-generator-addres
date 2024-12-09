@@ -1,4 +1,5 @@
 const { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } = require('@solana/web3.js');
+const { getAssociatedTokenAddress, createTransferInstruction, Token } = require('@solana/spl-token');
 const readlineSync = require('readline-sync');
 const bs58 = require('bs58');
 require('dotenv').config({ path: './data.env' }); // Membaca dari data.env
@@ -28,7 +29,7 @@ if (networkChoice === 0) {
 // Setup koneksi berdasarkan pilihan jaringan
 const connection = new Connection(rpcUrl, 'confirmed');
 
-// Fungsi untuk mendapatkan saldo akun
+// Fungsi untuk mendapatkan saldo akun (baik SOL maupun token SPL)
 async function getBalance(account) {
   try {
     const balance = await connection.getBalance(account.publicKey);
@@ -50,9 +51,18 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
       })
     );
 
+    // Menghitung biaya transaksi dinamis
+    const { feeCalculator } = await connection.getRecentBlockhash();
+    const transactionFee = feeCalculator.lamportsPerSignature;
+    const transactionFeeBuffer = transactionFee * transaction.signatures.length;
+
+    // Menambahkan biaya transaksi dinamis sebagai penyangga
+    const totalAmount = amount - transactionFeeBuffer;
+
     // Mengirim transaksi
     const signature = await connection.sendTransaction(transaction, [senderAccount]);
     await connection.confirmTransaction(signature);
+    console.log(`Transaksi SOL berhasil. Signature: ${signature}`);
     return signature;
   } catch (error) {
     console.log('Error sending SOL:', error);
@@ -60,12 +70,73 @@ async function sendSOL(senderAccount, recipientPublicKey, amount) {
   }
 }
 
-// Fungsi untuk memproses akun
+// Fungsi untuk mengirim Token SPL
+async function sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount) {
+  try {
+    // Dapatkan alamat token terkait dengan akun pengirim
+    const senderTokenAddress = await getAssociatedTokenAddress(
+      mintAddress, // Mint address token
+      senderAccount.publicKey // Public key pengirim
+    );
+
+    // Dapatkan alamat token penerima
+    const recipientTokenAddress = await getAssociatedTokenAddress(
+      mintAddress, // Mint address token
+      recipientPublicKey // Public key penerima
+    );
+
+    const transaction = new Transaction().add(
+      createTransferInstruction(
+        senderTokenAddress, // Alamat token pengirim
+        recipientTokenAddress, // Alamat token penerima
+        senderAccount.publicKey, // Public key pengirim
+        amount, // Jumlah token yang akan dikirim
+        []
+      )
+    );
+
+    // Menghitung biaya transaksi dinamis
+    const { feeCalculator } = await connection.getRecentBlockhash();
+    const transactionFee = feeCalculator.lamportsPerSignature;
+    const transactionFeeBuffer = transactionFee * transaction.signatures.length;
+
+    // Menambahkan biaya transaksi dinamis sebagai penyangga
+    const totalAmount = amount - transactionFeeBuffer;
+
+    // Mengirim transaksi
+    const signature = await connection.sendTransaction(transaction, [senderAccount]);
+    await connection.confirmTransaction(signature);
+    console.log(`Transaksi Token SPL berhasil. Signature: ${signature}`);
+    return signature;
+  } catch (error) {
+    console.log('Error sending SPL Token:', error);
+    return null;
+  }
+}
+
+// Fungsi untuk mendapatkan semua token SPL yang dimiliki oleh akun
+async function getSPLTokens(account) {
+  const tokens = [];
+  // Mendapatkan daftar akun token SPL yang terkait dengan akun
+  const tokenAccounts = await connection.getParsedTokenAccountsByOwner(account.publicKey, {
+    programId: new PublicKey("TokenkegQfeZyiNwAJbNQAWtDq55RSrk1r6B1V6iowdWcxp"), // Program ID untuk SPL Token
+  });
+
+  for (let { pubkey, account } of tokenAccounts.value) {
+    const mintAddress = account.data.parsed.info.mint;
+    const tokenAmount = account.data.parsed.info.tokenAmount.amount;
+    tokens.push({ mintAddress, amount: tokenAmount, pubkey });
+  }
+
+  return tokens;
+}
+
+// Fungsi untuk memproses akun dan mengirimkan SOL + SPL Token
 async function processAccount(senderAccount, recipientPublicKey) {
   const balance = await getBalance(senderAccount);
   console.log(`Saldo akun ${senderAccount.publicKey.toBase58()}: ${balance / LAMPORTS_PER_SOL} SOL`);
 
-  // Menghitung jumlah yang akan dikirim (menyisakan sedikit untuk biaya)
+  // Menghitung jumlah SOL yang akan dikirim (menyisakan sedikit untuk biaya)
   const feeBufferLamports = 5000;  // Biaya minimum dalam lamports
   const solAmountToSend = balance - feeBufferLamports;
 
@@ -76,14 +147,21 @@ async function processAccount(senderAccount, recipientPublicKey) {
       console.log(`Transaksi SOL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
     }
   } else {
-    console.log(`Saldo tidak cukup untuk menutupi biaya transaksi di akun ${senderAccount.publicKey.toBase58()}.`);
+    console.log(`Saldo SOL tidak cukup untuk menutupi biaya transaksi di akun ${senderAccount.publicKey.toBase58()}.`);
   }
-}
 
-// Fungsi untuk memproses beberapa akun (multi account)
-async function processMultipleAccounts(senderAccounts, recipientPublicKey) {
-  for (const senderAccount of senderAccounts) {
-    await processAccount(senderAccount, recipientPublicKey);
+  // Mengirimkan semua token SPL yang ada di akun
+  const splTokens = await getSPLTokens(senderAccount);
+  if (splTokens.length > 0) {
+    for (let { mintAddress, amount } of splTokens) {
+      console.log(`Mengirim ${amount} token SPL dari ${senderAccount.publicKey.toBase58()} ke ${recipientPublicKey.toBase58()}`);
+      const splResponse = await sendSPLToken(senderAccount, recipientPublicKey, mintAddress, amount);
+      if (splResponse) {
+        console.log(`Transaksi Token SPL berhasil dari ${senderAccount.publicKey.toBase58()}.`);
+      }
+    }
+  } else {
+    console.log(`Tidak ada token SPL yang ditemukan di akun ${senderAccount.publicKey.toBase58()}.`);
   }
 }
 
@@ -134,15 +212,14 @@ async function startBot() {
     await processAccount(senderAccounts[0], recipientPublicKey);
   } else if (accountChoice === 1) {
     // Multi Account: Menggunakan semua akun yang ada
-    await processMultipleAccounts(senderAccounts, recipientPublicKey);
-  } else {
-    console.log("Pilihan akun tidak valid.");
-    process.exit(1);
+    for (let senderAccount of senderAccounts) {
+      await processAccount(senderAccount, recipientPublicKey);
+    }
   }
 
-  // Tunggu sebentar sebelum memulai ulang atau menghentikan
-  await sleep(5000);  // Delay selama 5 detik
-  console.log("Selesai!");
+  // Delay dan kemudian ulangi lagi
+  await sleep(5000);
+  await startBot();
 }
 
 // Fungsi tidur untuk menunda eksekusi
